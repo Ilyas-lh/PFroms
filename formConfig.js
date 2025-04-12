@@ -61,6 +61,14 @@ const formConfig = {
             }
             // Add more conditions as needed
           }
+        },
+      // New field for importing images and videos
+        {
+          type: "file",
+          id: "mediaUpload",
+          label: "Importer des Images/Vidéos:",
+          accept: "image/*,video/*", // Accepts all image and video formats
+          required: false
         }
       ],
       nextPage: "page3-forms"
