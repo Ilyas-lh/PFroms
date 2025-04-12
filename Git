@@ -4,3 +4,5 @@ git commit -m "Initial commit"
 git branch -M main
 git remote set-url origin https://github.com/Ilyas-lh/PFroms.git
 git push -u origin main
+git config --global user.name "Ilyas-lh"
+git config --global user.email ilyaslhachimi@gmail.com

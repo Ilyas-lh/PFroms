@@ -435,6 +435,196 @@ class FormGenerator {
       }
     });
   }
+  async submitFormData(formData) {
+    try {
+        // Format data for Supabase
+        const supabaseData = this.formatDataForSupabase(formData);
+        
+        // Show loading state
+        this.showLoading(true);
+        
+        // Handle file uploads first (if any)
+        let filePaths = [];
+        if (formData.fileUpload && formData.fileUpload.length > 0) {
+            filePaths = await this.uploadFilesToSupabase(formData.fileUpload);
+        }
+        
+        // Add file paths to the data
+        if (filePaths.length > 0) {
+            supabaseData.file_paths = filePaths;
+        }
+        
+        // Insert data into Supabase
+        const { data, error } = await supabase
+            .from('quality_reports')
+            .insert([supabaseData]);
+        
+        if (error) throw error;
+        
+        console.log('Data saved to Supabase:', data);
+        
+        // Show success message
+        this.showNotification('Rapport enregistré avec succès!', 'success');
+        
+        return data;
+    } catch (error) {
+        console.error('Error saving to Supabase:', error);
+        
+        // Show error message
+        this.showNotification('Erreur lors de l\'enregistrement du rapport. Veuillez réessayer.', 'error');
+        
+        throw error;
+    } finally {
+        // Hide loading state
+        this.showLoading(false);
+    }
+}
+
+// Format form data for Supabase schema
+formatDataForSupabase(formData) {
+    return {
+        // Personal info
+        name: formData.name,
+        
+        // Main form data
+        action_type: formData.actionType,
+        operation_type: formData.operationType || null,
+        alert_type: formData.alertType || null,
+        entity: formData.entity,
+        quality: formData.quality,
+        hall: formData.hall,
+        arch: formData.arch,
+        quantity: parseFloat(formData.quantity),
+        
+        // Incident details
+        quality_incident: formData.qualityIncident === 'oui',
+        incident_types: Array.isArray(formData.incidentTypes) ? formData.incidentTypes : [],
+        
+        // Environmental measurements
+        product_temp: parseFloat(formData.productTemp),
+        ambient_temp: parseFloat(formData.ambientTemp),
+        humidity: parseFloat(formData.humidity),
+        
+        // Additional info
+        comment: formData.comment || '',
+        time_recorded: formData.time
+    };
+}
+
+// Upload files to Supabase Storage
+async uploadFilesToSupabase(files) {
+    const filePaths = [];
+    
+    // Create a folder with timestamp to group files from one submission
+    const folderName = `quality-reports/${Date.now()}`;
+    
+    // Process each file
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${i + 1}-${Date.now()}.${fileExt}`;
+        const filePath = `${folderName}/${fileName}`;
+        
+        // Upload file to Supabase Storage
+        const { data, error } = await supabase.storage
+            .from('form-uploads') // Create this bucket in Supabase Storage
+            .upload(filePath, file);
+            
+        if (error) {
+            console.error('Error uploading file:', error);
+            continue;
+        }
+        
+        filePaths.push(filePath);
+    }
+    
+    return filePaths;
+}
+
+// Show/hide loading indicator
+showLoading(isLoading) {
+    // You can implement a loading spinner here
+    const submitButton = document.querySelector('button[type="submit"]');
+    
+    if (submitButton) {
+        if (isLoading) {
+            submitButton.disabled = true;
+            submitButton.innerHTML = `
+                <span class="spinner"></span>
+                Envoi en cours...
+            `;
+        } else {
+            submitButton.disabled = false;
+            submitButton.innerHTML = `
+                Envoyer
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+            `;
+        }
+    }
+}
+
+// Show notification message
+showNotification(message, type = 'info') {
+    // Create notification element if it doesn't exist
+    let notification = document.getElementById('form-notification');
+    
+    if (!notification) {
+        notification = document.createElement('div');
+        notification.id = 'form-notification';
+        notification.style.position = 'fixed';
+        notification.style.bottom = '20px';
+        notification.style.right = '20px';
+        notification.style.padding = '15px 20px';
+        notification.style.borderRadius = '5px';
+        notification.style.color = 'white';
+        notification.style.fontWeight = 'bold';
+        notification.style.zIndex = '1000';
+        notification.style.transition = 'opacity 0.3s ease-in-out';
+        document.body.appendChild(notification);
+    }
+    
+    // Set style based on notification type
+    if (type === 'success') {
+        notification.style.backgroundColor = '#4CAF50';
+    } else if (type === 'error') {
+        notification.style.backgroundColor = '#F44336';
+    } else {
+        notification.style.backgroundColor = '#2196F3';
+    }
+    
+    // Set message and show notification
+    notification.textContent = message;
+    notification.style.opacity = '1';
+    
+    // Hide notification after 3 seconds
+    setTimeout(() => {
+        notification.style.opacity = '0';
+    }, 3000);
+}
+
+// Update your setupEventListeners method to use the Supabase submission
+setupEventListeners() {
+    const form = document.getElementById('qualityForm');
+    
+    // Form submission
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        this.updateFormData();
+        
+        try {
+            // Submit to Supabase
+            await this.submitFormData(this.formData);
+            
+            // Show thank you page on success
+            this.showPage('thankYouPage');
+        } catch (error) {
+            // Error is already handled in submitFormData
+            console.error('Form submission failed:', error);
+        }
+    });
+
+    // Other event listeners...
+}
 }
 
 // Initialize the form
@@ -444,3 +634,4 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Make resetForm accessible globally
   window.resetForm = () => generator.resetForm();});
+
