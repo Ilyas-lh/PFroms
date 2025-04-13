@@ -275,31 +275,18 @@
             
             // Test storage bucket access
             addStatus('Testing Supabase Storage access...');
-            supabaseClient.storage.listBuckets()
+            
+            // We'll use a simpler approach - just check if we can list the files in the bucket
+            // Make sure you've already created the "form-images" bucket manually in Supabase dashboard
+            supabaseClient.storage.from('form-images').list()
                 .then(response => {
                     if (response.error) {
-                        addStatus('Storage access error: ' + response.error.message, true);
+                        addStatus('⚠️ Storage bucket access error: ' + response.error.message, true);
+                        addStatus('Please make sure you created the "form-images" bucket in Supabase dashboard', true);
                     } else {
-                        // Check if our bucket exists
-                        const buckets = response.data || [];
-                        const formBucket = buckets.find(b => b.name === 'form-images');
-                        
-                        if (formBucket) {
-                            addStatus('Found form-images bucket');
-                        } else {
-                            addStatus('Creating form-images bucket...');
-                            // Create the bucket if it doesn't exist
-                            supabaseClient.storage.createBucket('form-images', {
-                                public: true,
-                                fileSizeLimit: 5242880 // 5MB
-                            }).then(response => {
-                                if (response.error) {
-                                    addStatus('Error creating bucket: ' + response.error.message, true);
-                                } else {
-                                    addStatus('Created form-images bucket successfully');
-                                }
-                            });
-                        }
+                        addStatus('Successfully connected to form-images bucket');
+                        const files = response.data || [];
+                        addStatus(`Bucket contains ${files.length} files`);
                     }
                 })
                 .catch(error => {
