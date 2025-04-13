@@ -3,367 +3,145 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Simple Form</title>
+    <title>Basic Form</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 700px;
+            max-width: 500px;
             margin: 0 auto;
-            padding: 20px;
-            color: #37352F;
-            background-color: #fff;
+            padding: 15px;
+            color: #333;
+            background: #fff;
         }
         
         h1 {
             font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
         }
         
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
         
         label {
             display: block;
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin-bottom: 8px;
+            font-weight: bold;
+            margin-bottom: 5px;
         }
         
-        input[type="text"], 
-        input[type="number"],
-        select {
+        input[type="text"],
+        input[type="number"] {
             width: 100%;
             padding: 10px;
-            border-radius: 8px;
-            border: 1px solid rgba(61, 59, 53, 0.16);
-            box-shadow: rgba(0, 0, 0, 0.12) 0px 1px 1px 0px, 
-                        rgba(61, 59, 53, 0.16) 0px 0px 0px 1px;
-            font-size: 16px; /* Prevents zoom on focus in iOS */
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+            box-sizing: border-box;
         }
         
         button {
-            background-color: #000000;
-            color: white;
-            padding: 12px 20px;
+            background: #000;
+            color: #fff;
             border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
+            padding: 12px 20px;
+            border-radius: 4px;
             font-size: 16px;
             width: 100%;
-            margin-top: 15px;
-        }
-        
-        button:active {
-            background-color: #333333;
-        }
-        
-        /* Status messages */
-        .status {
-            padding: 10px;
-            margin-bottom: 15px;
-            border-radius: 8px;
+            cursor: pointer;
         }
         
         .success {
-            background-color: #e9faeb;
-            color: #10651a;
-            border: 1px solid #20c933;
-        }
-        
-        .error {
-            background-color: #ffecec;
-            color: #802222;
-            border: 1px solid #ff4444;
-        }
-        
-        /* Camera button */
-        .camera-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            background-color: #f5f5f5;
-            color: #333;
-            border: 1px solid #ddd;
+            background: #e6ffe6;
+            border: 1px solid #99cc99;
             padding: 10px;
-            border-radius: 8px;
-            width: 100%;
-            margin-bottom: 10px;
-        }
-        
-        /* Image preview */
-        .preview {
-            margin-top: 15px;
-            max-width: 100%;
-            display: none;
-        }
-        
-        .preview img {
-            max-width: 100%;
-            max-height: 200px;
-            border-radius: 8px;
-            border: 1px solid #ddd;
-        }
-        
-        /* Thank you page */
-        .thanks-page {
-            text-align: center;
-            display: none;
-        }
-        
-        /* Loading indicator */
-        .loading {
-            display: none;
             margin: 10px 0;
-            text-align: center;
-        }
-        
-        .loading-dots {
-            display: inline-block;
-        }
-        
-        .loading-dots::after {
-            content: ".";
-            animation: dots 1.5s steps(5, end) infinite;
-        }
-        
-        @keyframes dots {
-            0%, 20% { content: "."; }
-            40% { content: ".."; }
-            60% { content: "..."; }
-            80%, 100% { content: ""; }
+            border-radius: 4px;
         }
     </style>
 </head>
 <body>
-    <!-- Main form page -->
-    <div id="form-page">
-        <div id="status-message" style="display: none;"></div>
-        
+    <div id="form-container">
         <h1>Simple Form</h1>
         
-        <form id="simple-form">
+        <div id="message"></div>
+        
+        <form id="basic-form" method="post">
             <div class="form-group">
                 <label for="name">Your Name:</label>
-                <input type="text" id="name" required>
+                <input type="text" id="name" name="name" required>
             </div>
             
             <div class="form-group">
-                <label for="favorite-number">Your Favorite Number:</label>
-                <input type="number" id="favorite-number" required>
+                <label for="favorite_number">Your Favorite Number:</label>
+                <input type="number" id="favorite_number" name="favorite_number" required>
             </div>
             
-            <div class="form-group">
-                <label for="image-upload">Image (Optional):</label>
-                <button type="button" id="take-photo" class="camera-btn">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-                        <circle cx="12" cy="13" r="4"></circle>
-                    </svg>
-                    Take a Photo
-                </button>
-                <input type="file" id="image-input" accept="image/*" capture="environment" style="display: none;">
-                
-                <div id="image-preview" class="preview">
-                    <img id="preview-img" src="" alt="Preview">
-                    <button type="button" id="remove-image">Remove Image</button>
-                </div>
-            </div>
-            
-            <div id="loading" class="loading">
-                Submitting <span class="loading-dots"></span>
-            </div>
-            
-            <button type="submit" id="submit-button">Submit</button>
+            <button type="submit">Submit</button>
         </form>
     </div>
     
-    <!-- Thank you page -->
-    <div id="thanks-page" class="thanks-page">
+    <div id="thank-you" style="display:none;">
         <h1>Thank You!</h1>
         <p>Your response has been submitted successfully.</p>
-        <button id="new-response">Submit Another Response</button>
+        <button onclick="resetForm()">Submit Another Response</button>
     </div>
     
     <script>
-        // Variables to store data
-        let imageData = null;
-        let imageFileName = null;
-        
-        // DOM Elements
-        const formPage = document.getElementById('form-page');
-        const thanksPage = document.getElementById('thanks-page');
-        const form = document.getElementById('simple-form');
-        const nameInput = document.getElementById('name');
-        const numberInput = document.getElementById('favorite-number');
-        const takePhotoBtn = document.getElementById('take-photo');
-        const imageInput = document.getElementById('image-input');
-        const imagePreview = document.getElementById('image-preview');
-        const previewImg = document.getElementById('preview-img');
-        const removeImageBtn = document.getElementById('remove-image');
-        const submitButton = document.getElementById('submit-button');
-        const newResponseBtn = document.getElementById('new-response');
-        const statusMessage = document.getElementById('status-message');
-        const loadingIndicator = document.getElementById('loading');
-        
-        // Supabase configuration
-        const SUPABASE_URL = 'https://wccszfsbabbyrzltbavd.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjY3N6ZnNiYWJieXJ6bHRiYXZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ0NzI5MzAsImV4cCI6MjA2MDA0ODkzMH0.WZximkNPAOOw2MUZYlIebCed7w0sAkamO6ceVSQ9Iz8';
-        
-        // Event Listeners
-        takePhotoBtn.addEventListener('click', () => {
-            imageInput.click();
-        });
-        
-        imageInput.addEventListener('change', handleImageSelection);
-        
-        removeImageBtn.addEventListener('click', () => {
-            imageData = null;
-            imageFileName = null;
-            imagePreview.style.display = 'none';
-            previewImg.src = '';
-        });
-        
-        form.addEventListener('submit', handleSubmit);
-        
-        newResponseBtn.addEventListener('click', () => {
-            formPage.style.display = 'block';
-            thanksPage.style.display = 'none';
-            form.reset();
-            imageData = null;
-            imageFileName = null;
-            imagePreview.style.display = 'none';
-            previewImg.src = '';
-        });
-        
-        // Handle image selection
-        function handleImageSelection(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            imageFileName = file.name;
-            
-            // Show image preview
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                previewImg.src = e.target.result;
-                imagePreview.style.display = 'block';
-                
-                // Store the image data as a base64 string
-                imageData = e.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-        
-        // Show status message
-        function showStatus(message, isError = false) {
-            statusMessage.textContent = message;
-            statusMessage.className = isError ? 'status error' : 'status success';
-            statusMessage.style.display = 'block';
-            
-            // Auto-hide after 3 seconds
-            setTimeout(() => {
-                statusMessage.style.display = 'none';
-            }, 3000);
-        }
-        
-        // Show/hide loading indicator
-        function setLoading(isLoading) {
-            if (isLoading) {
-                loadingIndicator.style.display = 'block';
-                submitButton.disabled = true;
-            } else {
-                loadingIndicator.style.display = 'none';
-                submitButton.disabled = false;
-            }
-        }
-        
-        // Handle form submission
-        async function handleSubmit(e) {
+        // Simple form handler without using modern APIs
+        document.getElementById('basic-form').onsubmit = function(e) {
             e.preventDefault();
             
-            const name = nameInput.value.trim();
-            const favoriteNumber = parseInt(numberInput.value);
+            var name = document.getElementById('name').value;
+            var favoriteNumber = document.getElementById('favorite_number').value;
             
-            if (!name || isNaN(favoriteNumber)) {
-                showStatus('Please fill in all required fields', true);
-                return;
+            if (!name || !favoriteNumber) {
+                showMessage('Please fill in all fields', true);
+                return false;
             }
             
-            setLoading(true);
+            // Create a simple object with the form data
+            var formData = {
+                name: name,
+                favorite_number: parseInt(favoriteNumber)
+            };
             
-            try {
-                // Create record data
-                const formData = {
-                    name: name,
-                    favorite_number: favoriteNumber,
-                    has_image: imageData ? true : false
-                };
-                
-                // Step 1: Insert the record
-                const recordResponse = await fetch(`${SUPABASE_URL}/rest/v1/simple_form`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'apikey': SUPABASE_KEY,
-                        'Authorization': `Bearer ${SUPABASE_KEY}`
-                    },
-                    body: JSON.stringify(formData)
-                });
-                
-                if (!recordResponse.ok) {
-                    throw new Error('Failed to save form data');
-                }
-                
-                // Step 2: Upload image if available
-                if (imageData) {
-                    // Generate a unique filename
-                    const timestamp = Date.now();
-                    const randomString = Math.random().toString(36).substring(2, 10);
-                    const filename = `${timestamp}-${randomString}.jpg`;
-                    
-                    // Extract the base64 data (remove the data:image/jpeg;base64, part)
-                    const base64Data = imageData.split(',')[1];
-                    
-                    // Convert base64 to binary
-                    const binaryData = atob(base64Data);
-                    const byteArray = new Uint8Array(binaryData.length);
-                    for (let i = 0; i < binaryData.length; i++) {
-                        byteArray[i] = binaryData.charCodeAt(i);
-                    }
-                    
-                    // Create a blob from the binary data
-                    const blob = new Blob([byteArray], { type: 'image/jpeg' });
-                    
-                    // Upload the image
-                    const imageResponse = await fetch(`${SUPABASE_URL}/storage/v1/object/form-images/${filename}`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'image/jpeg',
-                            'apikey': SUPABASE_KEY,
-                            'Authorization': `Bearer ${SUPABASE_KEY}`
-                        },
-                        body: blob
-                    });
-                    
-                    if (!imageResponse.ok) {
-                        console.warn('Failed to upload image, but form data was saved');
+            // Simple XHR request (old-school AJAX that works in all browsers)
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', 'https://wccszfsbabbyrzltbavd.supabase.co/rest/v1/simple_form', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.setRequestHeader('apikey', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjY3N6ZnNiYWJieXJ6bHRiYXZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ0NzI5MzAsImV4cCI6MjA2MDA0ODkzMH0.WZximkNPAOOw2MUZYlIebCed7w0sAkamO6ceVSQ9Iz8');
+            xhr.setRequestHeader('Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjY3N6ZnNiYWJieXJ6bHRiYXZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ0NzI5MzAsImV4cCI6MjA2MDA0ODkzMH0.WZximkNPAOOw2MUZYlIebCed7w0sAkamO6ceVSQ9Iz8');
+            
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 201 || xhr.status === 200) {
+                        // Success - show thank you page
+                        document.getElementById('form-container').style.display = 'none';
+                        document.getElementById('thank-you').style.display = 'block';
+                    } else {
+                        // Error
+                        showMessage('Error submitting form. Please try again.', true);
                     }
                 }
-                
-                // Show thank you page
-                formPage.style.display = 'none';
-                thanksPage.style.display = 'block';
-                
-            } catch (error) {
-                console.error('Error submitting form:', error);
-                showStatus('Error submitting form. Please try again.', true);
-            } finally {
-                setLoading(false);
-            }
+            };
+            
+            // Send the request
+            xhr.send(JSON.stringify(formData));
+            return false;
+        };
+        
+        function showMessage(text, isError) {
+            var messageEl = document.getElementById('message');
+            messageEl.textContent = text;
+            messageEl.className = isError ? 'error' : 'success';
+            messageEl.style.display = 'block';
+        }
+        
+        function resetForm() {
+            document.getElementById('basic-form').reset();
+            document.getElementById('form-container').style.display = 'block';
+            document.getElementById('thank-you').style.display = 'none';
+            document.getElementById('message').style.display = 'none';
         }
     </script>
 </body>
