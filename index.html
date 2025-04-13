@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple Form with Image Upload</title>
+    <title>Simple Form with Mobile Support</title>
     <style>
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
             max-width: 700px;
             margin: 0 auto;
             padding: 20px;
@@ -14,9 +14,9 @@
         }
         
         h1 {
-            font-size: 2.5rem;
-            font-weight: 800;
-            margin-bottom: 2.5rem;
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
         }
         
         .form-group {
@@ -25,7 +25,7 @@
         
         label {
             display: block;
-            font-size: 1.25rem;
+            font-size: 1.1rem;
             font-weight: 600;
             margin-bottom: 8px;
         }
@@ -52,6 +52,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            margin-top: 10px;
         }
         
         button:hover {
@@ -121,69 +122,37 @@
             display: block;
         }
         
-        /* File upload styling */
-        .file-upload-container {
+        /* Mobile-friendly file upload */
+        .image-option {
             margin-top: 10px;
-        }
-        
-        .file-input {
-            width: 0.1px;
-            height: 0.1px;
-            opacity: 0;
-            overflow: hidden;
-            position: absolute;
-            z-index: -1;
-        }
-        
-        .file-label {
-            display: inline-flex;
-            align-items: center;
-            padding: 10px 15px;
+            padding: 10px;
             background-color: #f0f0f0;
-            color: #333;
             border-radius: 8px;
-            cursor: pointer;
-            font-size: 1rem;
-            margin-bottom: 10px;
-            border: 1px solid #ddd;
         }
         
-        .file-label:hover {
-            background-color: #e0e0e0;
-        }
-        
-        .file-label svg {
-            margin-right: 8px;
-        }
-        
-        .file-info {
-            margin-top: 5px;
-            font-size: 0.9rem;
-            color: #666;
+        .image-option label {
+            display: inline-block;
+            margin-right: 10px;
         }
         
         .image-preview {
             margin-top: 15px;
-            max-width: 100%;
-            display: none;
+            text-align: center;
         }
         
         .image-preview img {
-            max-width: 300px;
-            max-height: 200px;
-            border-radius: 4px;
+            max-width: 100%;
+            max-height: 250px;
+            border-radius: 8px;
             border: 1px solid #ddd;
         }
         
-        .remove-file {
-            background-color: #ff5252;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            padding: 5px 10px;
-            margin-left: 10px;
-            cursor: pointer;
-            font-size: 0.8rem;
+        /* Camera button */
+        .camera-button {
+            background-color: #4285F4;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
     </style>
 </head>
@@ -209,21 +178,28 @@
             </div>
             
             <div class="form-group">
-                <label for="fileUpload">Upload Image:</label>
-                <div class="file-upload-container">
-                    <input type="file" id="fileUpload" name="fileUpload" accept="image/*" class="file-input">
-                    <label for="fileUpload" class="file-label">
+                <label>Do you want to add an image?</label>
+                <div class="image-option">
+                    <input type="radio" id="noImage" name="imageOption" value="none" checked>
+                    <label for="noImage">No Image</label>
+                    
+                    <input type="radio" id="uploadImage" name="imageOption" value="upload">
+                    <label for="uploadImage">Upload Image</label>
+                </div>
+                
+                <!-- Simple file input (only visible when "Upload Image" is selected) -->
+                <div id="fileUploadContainer" style="display: none; margin-top: 15px;">
+                    <input type="file" id="fileUpload" accept="image/*" capture="environment">
+                    <button type="button" class="camera-button" id="openCamera">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="17 8 12 3 7 8"></polyline>
-                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                            <circle cx="12" cy="13" r="4"></circle>
                         </svg>
-                        Select Image
-                    </label>
-                    <div class="file-info" id="fileInfo">No file selected</div>
-                    <div class="image-preview" id="imagePreview">
+                        Take Photo
+                    </button>
+                    <div class="image-preview" id="imagePreview" style="display: none;">
                         <img id="previewImg" src="" alt="Preview">
-                        <button type="button" class="remove-file" id="removeFile">Remove</button>
+                        <button type="button" id="removeImage">Remove</button>
                     </div>
                 </div>
             </div>
@@ -276,8 +252,7 @@
             // Test storage bucket access
             addStatus('Testing Supabase Storage access...');
             
-            // We'll use a simpler approach - just check if we can list the files in the bucket
-            // Make sure you've already created the "form-images" bucket manually in Supabase dashboard
+            // Check if we can access the bucket
             supabaseClient.storage.from('form-images').list()
                 .then(response => {
                     if (response.error) {
@@ -344,22 +319,78 @@
             document.getElementById(pageId).classList.add('active');
         }
         
-        // Upload file to Supabase Storage
+        // Process and resize image to reduce size issues
+        function processImage(file) {
+            return new Promise((resolve, reject) => {
+                try {
+                    // Create an image element to load the file
+                    const img = new Image();
+                    img.onload = function() {
+                        // Create a canvas to resize the image
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+                        
+                        // Maximum width/height for the image
+                        const MAX_SIZE = 1200;
+                        
+                        // Resize image if too large
+                        if (width > height && width > MAX_SIZE) {
+                            height = Math.round(height * (MAX_SIZE / width));
+                            width = MAX_SIZE;
+                        } else if (height > MAX_SIZE) {
+                            width = Math.round(width * (MAX_SIZE / height));
+                            height = MAX_SIZE;
+                        }
+                        
+                        // Set canvas dimensions and draw image
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        // Convert to blob
+                        canvas.toBlob(blob => {
+                            // Create a new file with a simplified name
+                            const resizedFile = new File([blob], "image.jpg", {
+                                type: 'image/jpeg',
+                                lastModified: new Date().getTime()
+                            });
+                            resolve(resizedFile);
+                        }, 'image/jpeg', 0.7); // 70% quality JPEG
+                    };
+                    
+                    img.onerror = function() {
+                        reject(new Error('Failed to load image'));
+                    };
+                    
+                    // Load the image from file
+                    img.src = URL.createObjectURL(file);
+                } catch (e) {
+                    reject(e);
+                }
+            });
+        }
+        
+        // Upload file to Supabase Storage with simplified approach
         async function uploadFile(file) {
             if (!file) return null;
             
             try {
-                // Create a unique filename
-                const fileExt = file.name.split('.').pop();
-                const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-                const filePath = `${fileName}`;
+                addStatus(`Processing image for upload...`);
                 
-                addStatus(`Uploading file: ${file.name}...`);
+                // Process and resize the image to make it more compatible with mobile
+                const processedFile = await processImage(file);
+                
+                // Create a simplified filename (avoids date/time issues)
+                const fileName = `image_${Math.random().toString(36).substring(2, 10)}.jpg`;
+                
+                addStatus(`Uploading image...`);
                 
                 // Upload to Supabase Storage
                 const { data, error } = await supabaseClient.storage
                     .from('form-images')
-                    .upload(filePath, file, {
+                    .upload(fileName, processedFile, {
                         cacheControl: '3600',
                         upsert: false
                     });
@@ -369,19 +400,19 @@
                     throw error;
                 }
                 
-                addStatus('File uploaded successfully');
+                addStatus('Image uploaded successfully');
                 
                 // Get the public URL
                 const { data: urlData } = supabaseClient.storage
                     .from('form-images')
-                    .getPublicUrl(filePath);
+                    .getPublicUrl(fileName);
                 
                 return {
-                    path: filePath,
+                    path: fileName,
                     url: urlData.publicUrl,
                     name: file.name,
-                    size: file.size,
-                    type: file.type
+                    size: processedFile.size,
+                    type: 'image/jpeg'
                 };
             } catch (error) {
                 console.error('File upload error:', error);
@@ -403,7 +434,7 @@
                 
                 // Upload image if selected
                 let imageData = null;
-                if (data.fileUpload) {
+                if (data.imageOption === 'upload' && data.fileUpload) {
                     imageData = await uploadFile(data.fileUpload);
                     if (!imageData && data.fileUpload) {
                         // File upload failed but was attempted
@@ -448,9 +479,9 @@
         // Reset form
         function resetForm() {
             document.getElementById('simpleForm').reset();
-            document.getElementById('fileInfo').textContent = 'No file selected';
             document.getElementById('imagePreview').style.display = 'none';
-            document.getElementById('previewImg').src = '';
+            document.getElementById('fileUploadContainer').style.display = 'none';
+            document.getElementById('noImage').checked = true;
             showPage('page1');
         }
         
@@ -458,39 +489,42 @@
         document.addEventListener('DOMContentLoaded', function() {
             addStatus('DOM loaded, setting up form');
             
-            // File input change handler
-            const fileInput = document.getElementById('fileUpload');
-            const fileInfo = document.getElementById('fileInfo');
-            const imagePreview = document.getElementById('imagePreview');
-            const previewImg = document.getElementById('previewImg');
-            const removeFile = document.getElementById('removeFile');
+            // Handle image option selection
+            const imageOptions = document.getElementsByName('imageOption');
+            imageOptions.forEach(option => {
+                option.addEventListener('change', function() {
+                    document.getElementById('fileUploadContainer').style.display = 
+                        this.value === 'upload' ? 'block' : 'none';
+                    
+                    if (this.value !== 'upload') {
+                        document.getElementById('imagePreview').style.display = 'none';
+                    }
+                });
+            });
             
-            fileInput.addEventListener('change', function() {
-                if (this.files && this.files[0]) {
-                    const file = this.files[0];
-                    
-                    // Update file info
-                    fileInfo.textContent = `Selected: ${file.name} (${formatFileSize(file.size)})`;
-                    
-                    // Show image preview
+            // Handle file input change
+            const fileInput = document.getElementById('fileUpload');
+            fileInput.addEventListener('change', function(e) {
+                const file = this.files[0];
+                if (file) {
                     const reader = new FileReader();
                     reader.onload = function(e) {
-                        previewImg.src = e.target.result;
-                        imagePreview.style.display = 'block';
+                        document.getElementById('previewImg').src = e.target.result;
+                        document.getElementById('imagePreview').style.display = 'block';
                     };
                     reader.readAsDataURL(file);
-                } else {
-                    fileInfo.textContent = 'No file selected';
-                    imagePreview.style.display = 'none';
                 }
             });
             
-            // Remove file button
-            removeFile.addEventListener('click', function() {
-                fileInput.value = '';
-                fileInfo.textContent = 'No file selected';
-                imagePreview.style.display = 'none';
-                previewImg.src = '';
+            // Camera button - makes mobile file upload easier
+            document.getElementById('openCamera').addEventListener('click', function() {
+                document.getElementById('fileUpload').click();
+            });
+            
+            // Remove image button
+            document.getElementById('removeImage').addEventListener('click', function() {
+                document.getElementById('fileUpload').value = '';
+                document.getElementById('imagePreview').style.display = 'none';
             });
             
             // Form submission
@@ -500,7 +534,8 @@
                 const formData = {
                     name: document.getElementById('name').value,
                     favoriteNumber: document.getElementById('favoriteNumber').value,
-                    fileUpload: fileInput.files[0] || null
+                    imageOption: document.querySelector('input[name="imageOption"]:checked').value,
+                    fileUpload: document.getElementById('fileUpload').files[0] || null
                 };
                 
                 // Validate form
@@ -516,13 +551,6 @@
                     showPage('thankYouPage');
                 }
             });
-            
-            // Helper function to format file size
-            function formatFileSize(bytes) {
-                if (bytes < 1024) return bytes + ' bytes';
-                else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-                else return (bytes / 1048576).toFixed(1) + ' MB';
-            }
         });
     </script>
 </body>
