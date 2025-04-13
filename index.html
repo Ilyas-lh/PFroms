@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-    <title>Simple Form</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Adaptive Form</title>
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
             max-width: 600px;
             margin: 0 auto;
             padding: 20px;
@@ -31,7 +31,7 @@
         input[type="text"],
         input[type="number"] {
             width: 100%;
-            padding: 10px;
+            padding: 12px;
             border: 1px solid #ccc;
             border-radius: 4px;
             font-size: 16px;
@@ -46,6 +46,7 @@
             text-align: center;
             cursor: pointer;
             position: relative;
+            transition: border-color 0.3s;
         }
         
         .upload-container:hover {
@@ -57,6 +58,7 @@
             margin: 0 auto 10px;
             width: 48px;
             height: 48px;
+            color: #555;
         }
         
         /* Hide actual file input */
@@ -101,13 +103,14 @@
         }
         
         .remove-file {
-            background-color: #ff4444;
+            background-color: #f44336;
             color: white;
             border: none;
             padding: 5px 10px;
             border-radius: 4px;
             margin-top: 5px;
             cursor: pointer;
+            font-size: 14px;
         }
         
         /* Submit button */
@@ -120,10 +123,33 @@
             font-size: 16px;
             cursor: pointer;
             width: 100%;
+            position: relative;
         }
         
         .submit-btn:hover {
             background-color: #333;
+        }
+        
+        .submit-btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        /* Spinner */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
         
         /* Status message */
@@ -146,19 +172,62 @@
             color: #cc0000;
         }
         
+        .warning {
+            background-color: #fffae6;
+            border: 1px solid #e6cc99;
+            color: #997300;
+        }
+        
         /* Thank you page */
         #thank-you {
             text-align: center;
             display: none;
+            padding: 20px;
         }
         
         #thank-you h1 {
             font-size: 28px;
             margin-bottom: 15px;
         }
+        
+        /* Debug panel */
+        #debug-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: rgba(0,0,0,0.8);
+            color: #fff;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 9999;
+            padding: 5px;
+            max-height: 20vh;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        .debug-entry {
+            padding: 2px 5px;
+            border-bottom: 1px solid #444;
+        }
+        
+        .debug-error {
+            color: #ff8080;
+        }
+        
+        .debug-success {
+            color: #80ff80;
+        }
+        
+        .debug-info {
+            color: #8080ff;
+        }
     </style>
 </head>
 <body>
+    <div id="debug-panel"></div>
+    
     <div id="form-container">
         <h1>Simple Form</h1>
         
@@ -211,7 +280,10 @@
         var currentFile = null;
         var supabaseUrl = 'https://wccszfsbabbyrzltbavd.supabase.co';
         var supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjY3N6ZnNiYWJieXJ6bHRiYXZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ0NzI5MzAsImV4cCI6MjA2MDA0ODkzMH0.WZximkNPAOOw2MUZYlIebCed7w0sAkamO6ceVSQ9Iz8';
-        var tableName = 'new_form'; // Updated to use your correct table name
+        var possibleTableNames = ['new_form', 'simple_form', 'form_responses'];
+        var validTableName = null;
+        var isWebView = false;
+        var debugMode = true; // Set to false to disable debug panel
         
         // ----- Element References -----
         var uploadContainer = document.getElementById('upload-container');
@@ -226,32 +298,257 @@
         var formContainer = document.getElementById('form-container');
         var thankYouEl = document.getElementById('thank-you');
         var newResponseBtn = document.getElementById('new-response');
+        var debugPanel = document.getElementById('debug-panel');
+        
+        // ----- Debug Functions -----
+        
+        function initDebug() {
+            if (debugMode) {
+                debugPanel.style.display = 'block';
+                
+                // Add double-tap to toggle debug panel
+                var lastTap = 0;
+                document.addEventListener('touchend', function(event) {
+                    var currentTime = new Date().getTime();
+                    var tapLength = currentTime - lastTap;
+                    if (tapLength < 300 && tapLength > 0) {
+                        debugPanel.style.display = debugPanel.style.display === 'block' ? 'none' : 'block';
+                        event.preventDefault();
+                    }
+                    lastTap = currentTime;
+                });
+            }
+        }
+        
+        function debugLog(message, type) {
+            if (!debugMode) return;
+            
+            console.log(type + ': ' + message);
+            
+            var entry = document.createElement('div');
+            entry.className = 'debug-entry debug-' + (type || 'info');
+            entry.textContent = message;
+            debugPanel.insertBefore(entry, debugPanel.firstChild);
+            
+            // Limit entries
+            if (debugPanel.children.length > 50) {
+                debugPanel.removeChild(debugPanel.lastChild);
+            }
+        }
+        
+        // ----- Environment Detection -----
+        function detectEnvironment() {
+            var ua = navigator.userAgent.toLowerCase();
+            
+            debugLog('User Agent: ' + ua, 'info');
+            
+            // Check for common WebView indicators
+            if (/android/i.test(ua)) {
+                if (/wv/i.test(ua) || (/version/i.test(ua) && /chrome/i.test(ua))) {
+                    isWebView = true;
+                    debugLog('Detected Android WebView', 'info');
+                }
+            } else if (/iphone|ipad|ipod/i.test(ua)) {
+                if (!window.safari) {
+                    isWebView = true;
+                    debugLog('Detected iOS WebView', 'info');
+                }
+            }
+            
+            if (window.navigator.standalone === true) {
+                debugLog('Running in standalone mode', 'info');
+            }
+            
+            if (isWebView) {
+                document.body.classList.add('webview-mode');
+                debugLog('Running in WebView environment', 'info');
+            } else {
+                document.body.classList.add('browser-mode');
+                debugLog('Running in browser environment', 'info');
+            }
+            
+            return isWebView;
+        }
+        
+        // ----- Supabase Table Detection -----
+        async function findValidTable() {
+            debugLog('Finding valid Supabase table...', 'info');
+            
+            for (var i = 0; i < possibleTableNames.length; i++) {
+                var tableName = possibleTableNames[i];
+                debugLog('Checking table: ' + tableName, 'info');
+                
+                try {
+                    var response = await fetch(supabaseUrl + '/rest/v1/' + tableName + '?limit=1', {
+                        method: 'GET',
+                        headers: {
+                            'apikey': supabaseKey,
+                            'Authorization': 'Bearer ' + supabaseKey
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        validTableName = tableName;
+                        debugLog('Found valid table: ' + tableName, 'success');
+                        return tableName;
+                    } else {
+                        debugLog('Table not found: ' + tableName + ' (Status: ' + response.status + ')', 'error');
+                    }
+                } catch (error) {
+                    debugLog('Error checking table ' + tableName + ': ' + error.message, 'error');
+                }
+            }
+            
+            debugLog('No valid table found. Will create new_form', 'warning');
+            
+            // If no table exists, try to create one
+            try {
+                var createTableResponse = await tryCreateTable('new_form');
+                if (createTableResponse) {
+                    validTableName = 'new_form';
+                    return 'new_form';
+                }
+            } catch (error) {
+                debugLog('Failed to create table: ' + error.message, 'error');
+            }
+            
+            // Default to first table name if nothing works
+            validTableName = possibleTableNames[0];
+            return validTableName;
+        }
+        
+        async function tryCreateTable(tableName) {
+            debugLog('Attempting to create table: ' + tableName, 'info');
+            
+            try {
+                // Using Supabase SQL API to create table
+                var sqlQuery = `
+                CREATE TABLE IF NOT EXISTS ${tableName} (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    name TEXT,
+                    favorite_number INTEGER,
+                    has_image BOOLEAN DEFAULT false,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+                ALTER TABLE ${tableName} ENABLE ROW LEVEL SECURITY;
+                CREATE POLICY "Allow anonymous insert" ON ${tableName} FOR INSERT TO anon WITH CHECK (true);
+                `;
+                
+                var response = await fetch(supabaseUrl + '/rest/v1/rpc/execute_sql', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': supabaseKey,
+                        'Authorization': 'Bearer ' + supabaseKey,
+                        'Prefer': 'return=minimal'
+                    },
+                    body: JSON.stringify({ query: sqlQuery })
+                });
+                
+                if (response.ok) {
+                    debugLog('Table created successfully: ' + tableName, 'success');
+                    return true;
+                } else {
+                    var errorText = await response.text();
+                    debugLog('Failed to create table: ' + errorText, 'error');
+                    return false;
+                }
+            } catch (error) {
+                debugLog('Error creating table: ' + error.message, 'error');
+                return false;
+            }
+        }
+        
+        // ----- Check Storage Bucket -----
+        async function checkStorageBucket() {
+            debugLog('Checking storage bucket...', 'info');
+            
+            try {
+                var response = await fetch(supabaseUrl + '/storage/v1/bucket/form-images', {
+                    method: 'GET',
+                    headers: {
+                        'apikey': supabaseKey,
+                        'Authorization': 'Bearer ' + supabaseKey
+                    }
+                });
+                
+                if (response.ok) {
+                    debugLog('Storage bucket exists', 'success');
+                    return true;
+                } else if (response.status === 404) {
+                    // Bucket doesn't exist, try to create it
+                    return await createStorageBucket();
+                } else {
+                    debugLog('Error checking bucket: ' + response.status, 'error');
+                    return false;
+                }
+            } catch (error) {
+                debugLog('Error checking storage bucket: ' + error.message, 'error');
+                return false;
+            }
+        }
+        
+        async function createStorageBucket() {
+            debugLog('Creating storage bucket...', 'info');
+            
+            try {
+                var response = await fetch(supabaseUrl + '/storage/v1/bucket', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': supabaseKey,
+                        'Authorization': 'Bearer ' + supabaseKey
+                    },
+                    body: JSON.stringify({
+                        name: 'form-images',
+                        public: true
+                    })
+                });
+                
+                if (response.ok) {
+                    debugLog('Storage bucket created successfully', 'success');
+                    return true;
+                } else {
+                    var errorText = await response.text();
+                    debugLog('Failed to create bucket: ' + errorText, 'error');
+                    return false;
+                }
+            } catch (error) {
+                debugLog('Error creating storage bucket: ' + error.message, 'error');
+                return false;
+            }
+        }
         
         // ----- Event Listeners -----
         
         // Trigger file input when container is clicked
         uploadContainer.addEventListener('click', function() {
+            debugLog('Upload container clicked', 'info');
             fileInput.click();
         });
         
         // Handle file selection
         fileInput.addEventListener('change', function(e) {
+            debugLog('File input change event', 'info');
             handleFileSelection(e);
         });
         
         // Remove file button
         removeFileBtn.addEventListener('click', function() {
+            debugLog('Remove file button clicked', 'info');
             resetFileUpload();
         });
         
         // Form submission
         dataForm.addEventListener('submit', function(e) {
             e.preventDefault();
+            debugLog('Form submitted', 'info');
             submitForm();
         });
         
         // New response button
         newResponseBtn.addEventListener('click', function() {
+            debugLog('New response button clicked', 'info');
             resetForm();
         });
         
@@ -260,10 +557,16 @@
         // Handle file selection
         function handleFileSelection(e) {
             var file = e.target.files[0];
-            if (!file) return;
+            if (!file) {
+                debugLog('No file selected', 'warning');
+                return;
+            }
+            
+            debugLog('File selected: ' + file.name + ' (' + file.size + ' bytes)', 'info');
             
             // Check file size (max 5MB)
             if (file.size > 5 * 1024 * 1024) {
+                debugLog('File too large: ' + formatFileSize(file.size), 'error');
                 showStatus('File is too large. Maximum size is 5MB.', 'error');
                 resetFileUpload();
                 return;
@@ -278,9 +581,14 @@
             // Show preview
             var reader = new FileReader();
             reader.onload = function(e) {
+                debugLog('File preview loaded', 'info');
                 previewImage.src = e.target.result;
                 uploadContainer.style.display = 'none';
                 previewContainer.style.display = 'block';
+            };
+            reader.onerror = function() {
+                debugLog('Error reading file', 'error');
+                showStatus('Error reading file. Please try again.', 'error');
             };
             reader.readAsDataURL(file);
         }
@@ -294,6 +602,7 @@
         
         // Reset file upload
         function resetFileUpload() {
+            debugLog('Resetting file upload', 'info');
             fileInput.value = '';
             currentFile = null;
             previewContainer.style.display = 'none';
@@ -302,6 +611,7 @@
         
         // Show status message
         function showStatus(message, type) {
+            debugLog('Status: ' + message + ' (Type: ' + type + ')', 'info');
             statusEl.textContent = message;
             statusEl.className = 'status ' + type;
             statusEl.style.display = 'block';
@@ -314,85 +624,159 @@
         
         // Generate a random ID without using Date
         function generateId() {
-            return Math.random().toString(36).substring(2, 15);
+            return Math.random().toString(36).substring(2, 15) + 
+                   Math.random().toString(36).substring(2, 15);
         }
         
+        // Show loading state
+        function setLoading(isLoading) {
+            if (isLoading) {
+                submitBtn.disabled = true;
+                
+                // Add spinner if not present
+                if (!submitBtn.querySelector('.spinner')) {
+                    var spinner = document.createElement('span');
+                    spinner.className = 'spinner';
+                    submitBtn.prepend(spinner);
+                    submitBtn.textContent = 'Submitting...';
+                }
+            } else {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Submit';
+            }
+        }
+        
+        // Get file extension safely
+        function getFileExtension(filename) {
+            return filename.split('.').pop().toLowerCase();
+        }
+        
+        // ----- Form Submission -----
+        
         // Submit form
-        function submitForm() {
-            var name = document.getElementById('name').value;
-            var favoriteNumber = document.getElementById('favorite-number').value;
+        async function submitForm() {
+            var name = document.getElementById('name').value.trim();
+            var favoriteNumber = document.getElementById('favorite-number').value.trim();
             
             if (!name || !favoriteNumber) {
                 showStatus('Please fill in all required fields.', 'error');
                 return;
             }
             
-            // Disable submit button
-            submitBtn.disabled = true;
+            // Show loading state
+            setLoading(true);
             
-            // Create the data object
-            var formData = {
-                name: name,
-                favorite_number: parseInt(favoriteNumber),
-                has_image: !!currentFile
-            };
-            
-            // First, submit the form data
-            submitDataToSupabase(formData)
-                .then(function(success) {
-                    if (success) {
-                        // If there's a file, upload it
-                        if (currentFile) {
-                            uploadFileToSupabase(currentFile)
-                                .then(function(fileSuccess) {
-                                    submitBtn.disabled = false;
-                                    if (fileSuccess) {
-                                        showThankYouPage();
-                                    } else {
-                                        showStatus('Form data saved but image upload failed.', 'error');
-                                    }
-                                });
-                        } else {
-                            // No file to upload
-                            submitBtn.disabled = false;
-                            showThankYouPage();
-                        }
-                    } else {
-                        submitBtn.disabled = false;
-                        showStatus('Failed to submit form data. Please try again.', 'error');
+            try {
+                // Ensure we have a valid table
+                if (!validTableName) {
+                    debugLog('No valid table detected, attempting to find one...', 'warning');
+                    validTableName = await findValidTable();
+                }
+                
+                if (!validTableName) {
+                    throw new Error('Could not find or create a valid table');
+                }
+                
+                // Check if storage bucket exists for file uploads
+                if (currentFile) {
+                    debugLog('File upload requested, checking storage bucket', 'info');
+                    const bucketExists = await checkStorageBucket();
+                    if (!bucketExists) {
+                        debugLog('Storage bucket not available', 'warning');
+                        showStatus('Image upload is not available. Your form will be submitted without the image.', 'warning');
                     }
-                });
+                }
+                
+                // Create the data object
+                var formData = {
+                    name: name,
+                    favorite_number: parseInt(favoriteNumber) || 0,
+                    has_image: !!currentFile
+                };
+                
+                debugLog('Submitting form data: ' + JSON.stringify(formData), 'info');
+                
+                // Submit the form data
+                const dataSubmitSuccess = await submitDataToSupabase(formData);
+                
+                if (!dataSubmitSuccess) {
+                    throw new Error('Failed to submit form data');
+                }
+                
+                debugLog('Form data submitted successfully', 'success');
+                
+                // If there's a file, upload it
+                let fileUploadSuccess = true;
+                if (currentFile) {
+                    debugLog('Attempting to upload file', 'info');
+                    fileUploadSuccess = await uploadFileToSupabase(currentFile);
+                    
+                    if (!fileUploadSuccess) {
+                        debugLog('File upload failed', 'error');
+                        showStatus('Your information was saved, but the image upload failed.', 'warning');
+                    } else {
+                        debugLog('File uploaded successfully', 'success');
+                    }
+                }
+                
+                // If data was submitted successfully, show thank you page
+                showThankYouPage();
+                
+            } catch (error) {
+                debugLog('Error during form submission: ' + error.message, 'error');
+                showStatus('Error: ' + error.message, 'error');
+            } finally {
+                setLoading(false);
+            }
         }
         
         // Submit data to Supabase
-        function submitDataToSupabase(data) {
+        async function submitDataToSupabase(data) {
             return new Promise(function(resolve) {
+                debugLog('Sending data to Supabase table: ' + validTableName, 'info');
+                
                 var xhr = new XMLHttpRequest();
-                xhr.open('POST', supabaseUrl + '/rest/v1/' + tableName, true);
+                xhr.open('POST', supabaseUrl + '/rest/v1/' + validTableName, true);
                 xhr.setRequestHeader('Content-Type', 'application/json');
                 xhr.setRequestHeader('apikey', supabaseKey);
                 xhr.setRequestHeader('Authorization', 'Bearer ' + supabaseKey);
+                xhr.setRequestHeader('Prefer', 'return=minimal');
                 
                 xhr.onreadystatechange = function() {
                     if (xhr.readyState === 4) {
-                        // Log response for debugging
-                        console.log('Form submission status:', xhr.status);
-                        console.log('Response:', xhr.responseText);
+                        debugLog('Response status: ' + xhr.status, 'info');
                         
-                        resolve(xhr.status === 201 || xhr.status === 200);
+                        if (xhr.status === 201 || xhr.status === 200) {
+                            debugLog('Data submission successful', 'success');
+                            resolve(true);
+                        } else {
+                            debugLog('Data submission failed: ' + xhr.responseText, 'error');
+                            resolve(false);
+                        }
                     }
                 };
                 
-                xhr.send(JSON.stringify(data));
+                xhr.onerror = function() {
+                    debugLog('Network error during data submission', 'error');
+                    resolve(false);
+                };
+                
+                // Send with a small delay to avoid race conditions
+                setTimeout(function() {
+                    xhr.send(JSON.stringify(data));
+                }, 100);
             });
         }
         
-        // Upload file to Supabase Storage using minimal code
-        function uploadFileToSupabase(file) {
+        // Upload file to Supabase Storage
+        async function uploadFileToSupabase(file) {
             return new Promise(function(resolve) {
                 var fileId = generateId();
-                var extension = file.name.split('.').pop();
+                var safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_'); // Remove unsafe characters
+                var extension = getFileExtension(safeName);
                 var filename = 'image_' + fileId + '.' + extension;
+                
+                debugLog('Uploading file: ' + filename, 'info');
                 
                 var xhr = new XMLHttpRequest();
                 xhr.open('POST', supabaseUrl + '/storage/v1/object/form-images/' + filename, true);
@@ -401,32 +785,74 @@
                 
                 xhr.onreadystatechange = function() {
                     if (xhr.readyState === 4) {
-                        // Log response for debugging
-                        console.log('File upload status:', xhr.status);
-                        console.log('Response:', xhr.responseText);
+                        debugLog('File upload status: ' + xhr.status, 'info');
                         
-                        resolve(xhr.status === 201 || xhr.status === 200);
+                        if (xhr.status === 201 || xhr.status === 200) {
+                            debugLog('File upload successful', 'success');
+                            resolve(true);
+                        } else {
+                            debugLog('File upload failed: ' + xhr.responseText, 'error');
+                            resolve(false);
+                        }
                     }
                 };
                 
-                xhr.send(file);
+                xhr.onerror = function() {
+                    debugLog('Network error during file upload', 'error');
+                    resolve(false);
+                };
+                
+                // In WebView environments, use plain file upload
+                var formData = new FormData();
+                formData.append('file', file, filename);
+                
+                // Send with a small delay to avoid race conditions
+                setTimeout(function() {
+                    xhr.send(formData);
+                }, 100);
             });
         }
         
         // Show thank you page
         function showThankYouPage() {
+            debugLog('Showing thank you page', 'info');
             formContainer.style.display = 'none';
             thankYouEl.style.display = 'block';
         }
         
         // Reset form
         function resetForm() {
+            debugLog('Resetting form', 'info');
             dataForm.reset();
             resetFileUpload();
             formContainer.style.display = 'block';
             thankYouEl.style.display = 'none';
             statusEl.style.display = 'none';
         }
+        
+        // ----- Initialization -----
+        
+        // Initialize the form
+        async function initializeForm() {
+            // Initialize debug panel
+            initDebug();
+            
+            // Detect environment
+            detectEnvironment();
+            
+            // Find valid table
+            try {
+                await findValidTable();
+            } catch (error) {
+                debugLog('Error finding valid table: ' + error.message, 'error');
+                // Continue anyway, we'll try again when submitting
+            }
+            
+            debugLog('Form initialized successfully', 'success');
+        }
+        
+        // Start initialization
+        initializeForm();
     </script>
 </body>
 </html>
