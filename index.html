@@ -6,7 +6,7 @@
     <title>Simple Form</title>
     <style>
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
             max-width: 700px;
             margin: 0 auto;
             padding: 20px;
@@ -110,30 +110,97 @@
             font-size: 0.8rem;
             margin-top: 4px;
         }
+        
+        /* Status panel */
+        #status-panel {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .status-success {
+            color: green;
+        }
+        
+        .status-error {
+            color: red;
+        }
+        
+        .status-item {
+            margin-bottom: 5px;
+        }
     </style>
 </head>
 <body>
+    <!-- Status panel for debugging -->
+    <div id="status-panel">
+        <h3>Connection Status</h3>
+        <div id="status-items"></div>
+    </div>
+    
     <!-- This div will contain your dynamically generated form -->
     <div id="form-container"></div>
 
-    <!-- Load Supabase JS from CDN first -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
-    <!-- Add a small delay to ensure Supabase is loaded before initialization -->
+    <!-- Load scripts with proper error handling -->
     <script>
-        // Simple check to see if Supabase loaded correctly
-        setTimeout(() => {
+        // Helper function to add status messages
+        function addStatus(message, isError = false) {
+            const statusItems = document.getElementById('status-items');
+            const item = document.createElement('div');
+            item.className = 'status-item' + (isError ? ' status-error' : ' status-success');
+            item.textContent = message;
+            statusItems.appendChild(item);
+            console.log(isError ? 'ERROR: ' : 'INFO: ', message);
+        }
+        
+        // Function to load scripts in sequence
+        function loadScript(url, callback) {
+            const script = document.createElement('script');
+            script.type = 'text/javascript';
+            script.src = url;
+            
+            script.onload = function() {
+                addStatus(`Loaded: ${url}`);
+                if (callback) callback();
+            };
+            
+            script.onerror = function() {
+                addStatus(`Failed to load: ${url}`, true);
+            };
+            
+            document.body.appendChild(script);
+        }
+        
+        // Start loading scripts in sequence
+        addStatus('Starting to load scripts');
+        
+        // First load Supabase
+        loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2', function() {
+            // Check if Supabase loaded correctly
             if (typeof supabase === 'undefined') {
-                console.error('Supabase library not loaded properly!');
+                addStatus('Supabase library not detected after loading', true);
             } else {
-                console.log('Supabase library loaded successfully');
+                addStatus('Supabase library loaded successfully');
+                
+                // Then load our client
+                loadScript('supabaseClient.js', function() {
+                    // Check if our client initialized
+                    if (typeof window.supabaseClient === 'undefined') {
+                        addStatus('Supabase client failed to initialize', true);
+                    } else {
+                        addStatus('Supabase client initialized successfully');
+                    }
+                    
+                    // Load remaining scripts
+                    loadScript('formConfig.js', function() {
+                        loadScript('formGenerator.js');
+                    });
+                });
             }
-        }, 500);
+        });
     </script>
-    
-    <!-- Load your JavaScript files in the correct order -->
-    <script src="supabaseClient.js"></script>
-    <script src="formConfig.js"></script>
-    <script src="formGenerator.js"></script>
 </body>
 </html>

@@ -238,20 +238,22 @@ class FormGenerator {
           // Show loading state
           this.showLoading(true);
           
-          console.log('Submitting data to Supabase:', this.formData);
+          console.log('Attempting to submit data to Supabase');
           
           // Check if Supabase client is available
-          if (typeof window.supabaseClient === 'undefined') {
-              console.error('Supabase client is not defined! Check supabaseClient.js');
-              this.showNotification('Database connection error. Check the console.', 'error');
+          if (!window.supabaseClient) {
+              console.error('Supabase client is not available!');
+              this.showNotification('Database connection is not available. Please check your connection and try again.', 'error');
               return;
           }
           
           // Format data for Supabase
           const supabaseData = {
               name: this.formData.name,
-              favorite_number: parseInt(this.formData.favoriteNumber)
+              favorite_number: parseInt(this.formData.favoriteNumber) || 0
           };
+          
+          console.log('Submitting data:', supabaseData);
           
           // Insert data into Supabase
           const { data, error } = await window.supabaseClient
@@ -272,7 +274,7 @@ class FormGenerator {
           
       } catch (error) {
           console.error('Error saving to Supabase:', error);
-          this.showNotification('Error: ' + error.message, 'error');
+          this.showNotification('Error: ' + (error.message || 'Unknown error occurred'), 'error');
       } finally {
           // Hide loading state
           this.showLoading(false);
