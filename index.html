@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Adaptive Form</title>
+    <title>Simple Form with Image Upload</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
@@ -202,7 +202,7 @@
             font-size: 12px;
             z-index: 9999;
             padding: 5px;
-            max-height: 20vh;
+            max-height: 30vh;
             overflow-y: auto;
             display: none;
         }
@@ -222,6 +222,11 @@
         
         .debug-info {
             color: #8080ff;
+        }
+        
+        /* Show debug panel in development */
+        .dev-mode #debug-panel {
+            display: block;
         }
     </style>
 </head>
@@ -278,12 +283,15 @@
     <script>
         // ----- Global Variables -----
         var currentFile = null;
+        var submissionId = null; // Track the current submission ID
         var supabaseUrl = 'https://wccszfsbabbyrzltbavd.supabase.co';
         var supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjY3N6ZnNiYWJieXJ6bHRiYXZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ0NzI5MzAsImV4cCI6MjA2MDA0ODkzMH0.WZximkNPAOOw2MUZYlIebCed7w0sAkamO6ceVSQ9Iz8';
-        var possibleTableNames = ['new_form', 'simple_form', 'form_responses'];
-        var validTableName = null;
+        var tableName = 'new_form'; // Default table name
         var isWebView = false;
-        var debugMode = true; // Set to false to disable debug panel
+        var debugMode = true; // Set to true to enable debug panel
+
+        // Dev mode toggle (set to true during development)
+        var isDev = false; // Change to true to show debug panel by default
         
         // ----- Element References -----
         var uploadContainer = document.getElementById('upload-container');
@@ -302,167 +310,253 @@
         
         // ----- Debug Functions -----
         
+        // Initialize debug panel
         function initDebug() {
+            if (isDev) {
+                document.body.classList.add('dev-mode');
+            }
+            
             if (debugMode) {
-                debugPanel.style.display = 'block';
-                
-                // Add double-tap to toggle debug panel
+                // Add double-tap to toggle debug panel visibility
                 var lastTap = 0;
                 document.addEventListener('touchend', function(event) {
                     var currentTime = new Date().getTime();
                     var tapLength = currentTime - lastTap;
                     if (tapLength < 300 && tapLength > 0) {
-                        debugPanel.style.display = debugPanel.style.display === 'block' ? 'none' : 'block';
+                        toggleDebugPanel();
                         event.preventDefault();
                     }
                     lastTap = currentTime;
                 });
+                
+                // Also add keyboard shortcut (Ctrl+D) to toggle debug panel
+                document.addEventListener('keydown', function(event) {
+                    if (event.ctrlKey && event.key === 'd') {
+                        toggleDebugPanel();
+                        event.preventDefault();
+                    }
+                });
             }
         }
         
+        // Toggle debug panel visibility
+        function toggleDebugPanel() {
+            if (debugPanel.style.display === 'block') {
+                debugPanel.style.display = 'none';
+            } else {
+                debugPanel.style.display = 'block';
+            }
+        }
+        
+        // Log to debug panel
         function debugLog(message, type) {
             if (!debugMode) return;
             
-            console.log(type + ': ' + message);
+            console.log((type || 'INFO') + ': ' + message);
             
             var entry = document.createElement('div');
-            entry.className = 'debug-entry debug-' + (type || 'info');
+            entry.className = 'debug-entry debug-' + (type || 'info').toLowerCase();
             entry.textContent = message;
             debugPanel.insertBefore(entry, debugPanel.firstChild);
             
             // Limit entries
-            if (debugPanel.children.length > 50) {
+            if (debugPanel.children.length > 100) {
                 debugPanel.removeChild(debugPanel.lastChild);
             }
         }
         
-        // ----- Environment Detection -----
+        // ----- Setup and Initialization -----
+        
+        // Detect WebView environment
         function detectEnvironment() {
             var ua = navigator.userAgent.toLowerCase();
+            debugLog('User Agent: ' + ua, 'INFO');
             
-            debugLog('User Agent: ' + ua, 'info');
-            
-            // Check for common WebView indicators
+            // Check for Android WebView
             if (/android/i.test(ua)) {
                 if (/wv/i.test(ua) || (/version/i.test(ua) && /chrome/i.test(ua))) {
                     isWebView = true;
-                    debugLog('Detected Android WebView', 'info');
+                    debugLog('Detected Android WebView', 'INFO');
                 }
-            } else if (/iphone|ipad|ipod/i.test(ua)) {
+            } 
+            // Check for iOS WebView
+            else if (/iphone|ipad|ipod/i.test(ua)) {
                 if (!window.safari) {
                     isWebView = true;
-                    debugLog('Detected iOS WebView', 'info');
+                    debugLog('Detected iOS WebView', 'INFO');
                 }
-            }
-            
-            if (window.navigator.standalone === true) {
-                debugLog('Running in standalone mode', 'info');
             }
             
             if (isWebView) {
                 document.body.classList.add('webview-mode');
-                debugLog('Running in WebView environment', 'info');
+                debugLog('Running in WebView environment', 'INFO');
             } else {
                 document.body.classList.add('browser-mode');
-                debugLog('Running in browser environment', 'info');
+                debugLog('Running in browser environment', 'INFO');
             }
             
             return isWebView;
         }
         
-        // ----- Supabase Table Detection -----
-        async function findValidTable() {
-            debugLog('Finding valid Supabase table...', 'info');
+        // Check if Supabase table exists
+        async function checkTableExists(name) {
+            debugLog('Checking if table exists: ' + name, 'INFO');
             
-            for (var i = 0; i < possibleTableNames.length; i++) {
-                var tableName = possibleTableNames[i];
-                debugLog('Checking table: ' + tableName, 'info');
-                
-                try {
-                    var response = await fetch(supabaseUrl + '/rest/v1/' + tableName + '?limit=1', {
-                        method: 'GET',
-                        headers: {
-                            'apikey': supabaseKey,
-                            'Authorization': 'Bearer ' + supabaseKey
-                        }
-                    });
-                    
-                    if (response.ok) {
-                        validTableName = tableName;
-                        debugLog('Found valid table: ' + tableName, 'success');
-                        return tableName;
-                    } else {
-                        debugLog('Table not found: ' + tableName + ' (Status: ' + response.status + ')', 'error');
-                    }
-                } catch (error) {
-                    debugLog('Error checking table ' + tableName + ': ' + error.message, 'error');
-                }
-            }
-            
-            debugLog('No valid table found. Will create new_form', 'warning');
-            
-            // If no table exists, try to create one
             try {
-                var createTableResponse = await tryCreateTable('new_form');
-                if (createTableResponse) {
-                    validTableName = 'new_form';
-                    return 'new_form';
+                var response = await fetch(supabaseUrl + '/rest/v1/' + name + '?limit=1', {
+                    method: 'GET',
+                    headers: {
+                        'apikey': supabaseKey,
+                        'Authorization': 'Bearer ' + supabaseKey
+                    }
+                });
+                
+                if (response.ok) {
+                    debugLog('Table exists: ' + name, 'SUCCESS');
+                    return true;
+                } else {
+                    debugLog('Table does not exist: ' + name, 'WARNING');
+                    return false;
                 }
             } catch (error) {
-                debugLog('Failed to create table: ' + error.message, 'error');
+                debugLog('Error checking table: ' + error.message, 'ERROR');
+                return false;
             }
-            
-            // Default to first table name if nothing works
-            validTableName = possibleTableNames[0];
-            return validTableName;
         }
         
-        async function tryCreateTable(tableName) {
-            debugLog('Attempting to create table: ' + tableName, 'info');
+        // Create Supabase table
+        async function createTable(name) {
+            debugLog('Creating table: ' + name, 'INFO');
             
             try {
-                // Using Supabase SQL API to create table
-                var sqlQuery = `
-                CREATE TABLE IF NOT EXISTS ${tableName} (
+                // First check if rpc/execute_sql is available
+                var sqlCheck = await fetch(supabaseUrl + '/rest/v1/rpc/execute_sql', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': supabaseKey,
+                        'Authorization': 'Bearer ' + supabaseKey
+                    },
+                    body: JSON.stringify({ query: 'SELECT 1' })
+                });
+                
+                // If SQL RPC is not available, we can't create a table this way
+                if (!sqlCheck.ok) {
+                    debugLog('SQL RPC not available, cannot create table', 'ERROR');
+                    return false;
+                }
+                
+                // Create the table using SQL
+                var createSql = `
+                CREATE TABLE IF NOT EXISTS ${name} (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                    name TEXT,
+                    name TEXT NOT NULL,
                     favorite_number INTEGER,
                     has_image BOOLEAN DEFAULT false,
                     image_url TEXT,
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                 );
-                ALTER TABLE ${tableName} ENABLE ROW LEVEL SECURITY;
-                CREATE POLICY "Allow anonymous insert" ON ${tableName} FOR INSERT TO anon WITH CHECK (true);
+                
+                -- Enable row level security
+                ALTER TABLE ${name} ENABLE ROW LEVEL SECURITY;
+                
+                -- Create policy for anonymous inserts
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_policies WHERE tablename = '${name}' AND policyname = 'Allow anonymous inserts'
+                    ) THEN
+                        CREATE POLICY "Allow anonymous inserts" ON ${name} FOR INSERT TO anon WITH CHECK (true);
+                    END IF;
+                END
+                $$;
+                
+                -- Create policy for authenticated selects
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_policies WHERE tablename = '${name}' AND policyname = 'Allow authenticated selects'
+                    ) THEN
+                        CREATE POLICY "Allow authenticated selects" ON ${name} FOR SELECT TO authenticated USING (true);
+                    END IF;
+                END
+                $$;
+                
+                -- Create policy for authenticated updates
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_policies WHERE tablename = '${name}' AND policyname = 'Allow authenticated updates'
+                    ) THEN
+                        CREATE POLICY "Allow authenticated updates" ON ${name} FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+                    END IF;
+                END
+                $$;
+                
+                -- Create policy for anonymous updates (needed for image URL updates)
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_policies WHERE tablename = '${name}' AND policyname = 'Allow anonymous updates'
+                    ) THEN
+                        CREATE POLICY "Allow anonymous updates" ON ${name} FOR UPDATE TO anon USING (true) WITH CHECK (true);
+                    END IF;
+                END
+                $$;
                 `;
                 
-                var response = await fetch(supabaseUrl + '/rest/v1/rpc/execute_sql', {
+                var createResponse = await fetch(supabaseUrl + '/rest/v1/rpc/execute_sql', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'apikey': supabaseKey,
-                        'Authorization': 'Bearer ' + supabaseKey,
-                        'Prefer': 'return=minimal'
+                        'Authorization': 'Bearer ' + supabaseKey
                     },
-                    body: JSON.stringify({ query: sqlQuery })
+                    body: JSON.stringify({ query: createSql })
                 });
                 
-                if (response.ok) {
-                    debugLog('Table created successfully: ' + tableName, 'success');
+                if (createResponse.ok) {
+                    debugLog('Table created successfully: ' + name, 'SUCCESS');
                     return true;
                 } else {
-                    var errorText = await response.text();
-                    debugLog('Failed to create table: ' + errorText, 'error');
+                    var errorText = await createResponse.text();
+                    debugLog('Failed to create table: ' + errorText, 'ERROR');
                     return false;
                 }
             } catch (error) {
-                debugLog('Error creating table: ' + error.message, 'error');
+                debugLog('Error creating table: ' + error.message, 'ERROR');
                 return false;
             }
         }
         
-        // ----- Check Storage Bucket -----
+        // Initialize the table
+        async function initializeTable() {
+            // Try these table names in order
+            var tableNames = ['new_form', 'simple_form', 'form_responses'];
+            
+            for (let i = 0; i < tableNames.length; i++) {
+                let name = tableNames[i];
+                if (await checkTableExists(name)) {
+                    tableName = name;
+                    debugLog('Using existing table: ' + name, 'SUCCESS');
+                    return true;
+                }
+            }
+            
+            // If no table exists, try to create one
+            debugLog('No existing table found, trying to create one', 'WARNING');
+            if (await createTable('new_form')) {
+                tableName = 'new_form';
+                return true;
+            }
+            
+            debugLog('Failed to create or find a valid table', 'ERROR');
+            return false;
+        }
+        
+        // Check storage bucket 
         async function checkStorageBucket() {
-            debugLog('Checking storage bucket...', 'info');
+            debugLog('Checking storage bucket...', 'INFO');
             
             try {
                 var response = await fetch(supabaseUrl + '/storage/v1/bucket/form-images', {
@@ -474,23 +568,27 @@
                 });
                 
                 if (response.ok) {
-                    debugLog('Storage bucket exists', 'success');
+                    debugLog('Storage bucket exists', 'SUCCESS');
+                    
+                    // Make sure bucket is public
+                    await setStorageBucketPublic();
                     return true;
                 } else if (response.status === 404) {
                     // Bucket doesn't exist, try to create it
                     return await createStorageBucket();
                 } else {
-                    debugLog('Error checking bucket: ' + response.status, 'error');
+                    debugLog('Error checking bucket: ' + response.status, 'ERROR');
                     return false;
                 }
             } catch (error) {
-                debugLog('Error checking storage bucket: ' + error.message, 'error');
+                debugLog('Error checking storage bucket: ' + error.message, 'ERROR');
                 return false;
             }
         }
         
+        // Create storage bucket
         async function createStorageBucket() {
-            debugLog('Creating storage bucket...', 'info');
+            debugLog('Creating storage bucket...', 'INFO');
             
             try {
                 var response = await fetch(supabaseUrl + '/storage/v1/bucket', {
@@ -507,15 +605,46 @@
                 });
                 
                 if (response.ok) {
-                    debugLog('Storage bucket created successfully', 'success');
+                    debugLog('Storage bucket created successfully', 'SUCCESS');
                     return true;
                 } else {
                     var errorText = await response.text();
-                    debugLog('Failed to create bucket: ' + errorText, 'error');
+                    debugLog('Failed to create bucket: ' + errorText, 'ERROR');
                     return false;
                 }
             } catch (error) {
-                debugLog('Error creating storage bucket: ' + error.message, 'error');
+                debugLog('Error creating storage bucket: ' + error.message, 'ERROR');
+                return false;
+            }
+        }
+        
+        // Ensure storage bucket is public
+        async function setStorageBucketPublic() {
+            debugLog('Setting storage bucket to public...', 'INFO');
+            
+            try {
+                var response = await fetch(supabaseUrl + '/storage/v1/bucket/form-images', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': supabaseKey,
+                        'Authorization': 'Bearer ' + supabaseKey
+                    },
+                    body: JSON.stringify({
+                        public: true
+                    })
+                });
+                
+                if (response.ok) {
+                    debugLog('Storage bucket set to public', 'SUCCESS');
+                    return true;
+                } else {
+                    var errorText = await response.text();
+                    debugLog('Failed to set bucket to public: ' + errorText, 'ERROR');
+                    return false;
+                }
+            } catch (error) {
+                debugLog('Error setting bucket to public: ' + error.message, 'ERROR');
                 return false;
             }
         }
@@ -524,95 +653,40 @@
         
         // Trigger file input when container is clicked
         uploadContainer.addEventListener('click', function() {
-            debugLog('Upload container clicked', 'info');
+            debugLog('Upload container clicked', 'INFO');
             fileInput.click();
         });
         
         // Handle file selection
         fileInput.addEventListener('change', function(e) {
-            debugLog('File input change event', 'info');
+            debugLog('File input change event', 'INFO');
             handleFileSelection(e);
         });
         
         // Remove file button
         removeFileBtn.addEventListener('click', function() {
-            debugLog('Remove file button clicked', 'info');
+            debugLog('Remove file button clicked', 'INFO');
             resetFileUpload();
         });
         
         // Form submission
         dataForm.addEventListener('submit', function(e) {
             e.preventDefault();
-            debugLog('Form submitted', 'info');
+            debugLog('Form submitted', 'INFO');
             submitForm();
         });
         
         // New response button
         newResponseBtn.addEventListener('click', function() {
-            debugLog('New response button clicked', 'info');
+            debugLog('New response button clicked', 'INFO');
             resetForm();
         });
         
         // ----- Helper Functions -----
         
-        // Handle file selection
-        function handleFileSelection(e) {
-            var file = e.target.files[0];
-            if (!file) {
-                debugLog('No file selected', 'warning');
-                return;
-            }
-            
-            debugLog('File selected: ' + file.name + ' (' + file.size + ' bytes)', 'info');
-            
-            // Check file size (max 5MB)
-            if (file.size > 5 * 1024 * 1024) {
-                debugLog('File too large: ' + formatFileSize(file.size), 'error');
-                showStatus('File is too large. Maximum size is 5MB.', 'error');
-                resetFileUpload();
-                return;
-            }
-            
-            // Store the file for later upload
-            currentFile = file;
-            
-            // Update UI
-            fileInfo.textContent = file.name + ' (' + formatFileSize(file.size) + ')';
-            
-            // Show preview
-            var reader = new FileReader();
-            reader.onload = function(e) {
-                debugLog('File preview loaded', 'info');
-                previewImage.src = e.target.result;
-                uploadContainer.style.display = 'none';
-                previewContainer.style.display = 'block';
-            };
-            reader.onerror = function() {
-                debugLog('Error reading file', 'error');
-                showStatus('Error reading file. Please try again.', 'error');
-            };
-            reader.readAsDataURL(file);
-        }
-        
-        // Format file size
-        function formatFileSize(bytes) {
-            if (bytes < 1024) return bytes + ' B';
-            else if (bytes < 1048576) return Math.round(bytes / 1024) + ' KB';
-            else return Math.round(bytes / 1048576 * 10) / 10 + ' MB';
-        }
-        
-        // Reset file upload
-        function resetFileUpload() {
-            debugLog('Resetting file upload', 'info');
-            fileInput.value = '';
-            currentFile = null;
-            previewContainer.style.display = 'none';
-            uploadContainer.style.display = 'block';
-        }
-        
         // Show status message
         function showStatus(message, type) {
-            debugLog('Status: ' + message + ' (Type: ' + type + ')', 'info');
+            debugLog('Status: ' + message + ' (Type: ' + type + ')', 'INFO');
             statusEl.textContent = message;
             statusEl.className = 'status ' + type;
             statusEl.style.display = 'block';
@@ -621,12 +695,6 @@
             setTimeout(function() {
                 statusEl.style.display = 'none';
             }, 5000);
-        }
-        
-        // Generate a random ID without using Date
-        function generateId() {
-            return Math.random().toString(36).substring(2, 15) + 
-                   Math.random().toString(36).substring(2, 15);
         }
         
         // Show loading state
@@ -647,9 +715,70 @@
             }
         }
         
+        // Generate a random ID without using Date
+        function generateId() {
+            return Math.random().toString(36).substring(2, 15) + 
+                   Math.random().toString(36).substring(2, 15);
+        }
+        
+        // Format file size
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            else if (bytes < 1048576) return Math.round(bytes / 1024) + ' KB';
+            else return Math.round(bytes / 1048576 * 10) / 10 + ' MB';
+        }
+        
         // Get file extension safely
         function getFileExtension(filename) {
             return filename.split('.').pop().toLowerCase();
+        }
+        
+        // Handle file selection
+        function handleFileSelection(e) {
+            var file = e.target.files[0];
+            if (!file) {
+                debugLog('No file selected', 'WARNING');
+                return;
+            }
+            
+            debugLog('File selected: ' + file.name + ' (' + file.size + ' bytes)', 'INFO');
+            
+            // Check file size (max 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                debugLog('File too large: ' + formatFileSize(file.size), 'ERROR');
+                showStatus('File is too large. Maximum size is 5MB.', 'error');
+                resetFileUpload();
+                return;
+            }
+            
+            // Store the file for later upload
+            currentFile = file;
+            
+            // Update UI
+            fileInfo.textContent = file.name + ' (' + formatFileSize(file.size) + ')';
+            
+            // Show preview
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                debugLog('File preview loaded', 'INFO');
+                previewImage.src = e.target.result;
+                uploadContainer.style.display = 'none';
+                previewContainer.style.display = 'block';
+            };
+            reader.onerror = function() {
+                debugLog('Error reading file', 'ERROR');
+                showStatus('Error reading file. Please try again.', 'error');
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        // Reset file upload
+        function resetFileUpload() {
+            debugLog('Resetting file upload', 'INFO');
+            fileInput.value = '';
+            currentFile = null;
+            previewContainer.style.display = 'none';
+            uploadContainer.style.display = 'block';
         }
         
         // ----- Form Submission -----
@@ -668,81 +797,81 @@
             setLoading(true);
             
             try {
-                // Ensure we have a valid table
-                if (!validTableName) {
-                    debugLog('No valid table detected, attempting to find one...', 'warning');
-                    validTableName = await findValidTable();
+                // Make sure table is initialized
+                if (!tableName) {
+                    debugLog('Initializing table...', 'INFO');
+                    await initializeTable();
                 }
                 
-                if (!validTableName) {
-                    throw new Error('Could not find or create a valid table');
+                if (!tableName) {
+                    throw new Error('No valid database table available');
                 }
                 
-                // Check if storage bucket exists for file uploads
-                if (currentFile) {
-                    debugLog('File upload requested, checking storage bucket', 'info');
-                    const bucketExists = await checkStorageBucket();
-                    if (!bucketExists) {
-                        debugLog('Storage bucket not available', 'warning');
-                        showStatus('Image upload is not available. Your form will be submitted without the image.', 'warning');
-                    }
-                }
+                // Create unique ID for this submission
+                submissionId = generateId();
+                debugLog('Generated submission ID: ' + submissionId, 'INFO');
                 
-                // Create the data object - we'll add the image_url later if needed
+                // Create data object
                 var formData = {
                     name: name,
                     favorite_number: parseInt(favoriteNumber) || 0,
                     has_image: !!currentFile,
-                    image_url: null // Will be updated after file upload if successful
+                    image_url: null // Will be updated if file upload succeeds
                 };
                 
-                debugLog('Submitting form data: ' + JSON.stringify(formData), 'info');
+                debugLog('Submitting form data: ' + JSON.stringify(formData), 'INFO');
                 
-                // Submit the form data
-                const dataSubmitSuccess = await submitDataToSupabase(formData);
+                // Submit form data
+                var submitResult = await submitDataToSupabase(formData);
                 
-                if (!dataSubmitSuccess) {
-                    throw new Error('Failed to submit form data');
+                if (!submitResult.success) {
+                    throw new Error('Failed to submit form data: ' + submitResult.error);
                 }
                 
-                debugLog('Form data submitted successfully', 'success');
+                debugLog('Form data submitted successfully with ID: ' + submitResult.id, 'SUCCESS');
                 
-                // If there's a file, upload it
-                let fileUploadSuccess = true;
-                let imageUrl = null;
+                // Store the record ID for later use
+                submissionId = submitResult.id;
                 
+                // If there's a file, upload it and update the record
                 if (currentFile) {
-                    debugLog('Attempting to upload file', 'info');
-                    const uploadResult = await uploadFileToSupabase(currentFile);
+                    debugLog('Checking storage bucket for file upload...', 'INFO');
+                    const bucketExists = await checkStorageBucket();
                     
-                    if (!uploadResult.success) {
-                        debugLog('File upload failed', 'error');
-                        showStatus('Your information was saved, but the image upload failed.', 'warning');
+                    if (!bucketExists) {
+                        debugLog('Storage bucket not available', 'WARNING');
+                        showStatus('Image upload is not available. Your information was saved without the image.', 'warning');
                     } else {
-                        debugLog('File uploaded successfully', 'success');
+                        debugLog('Uploading file...', 'INFO');
+                        const uploadResult = await uploadFileToSupabase(currentFile);
                         
-                        // Store the image URL in the database
-                        imageUrl = uploadResult.url;
-                        if (imageUrl) {
-                            debugLog('Updating record with image URL: ' + imageUrl, 'info');
-                            const updateSuccess = await updateImageUrl(validTableName, imageUrl);
+                        if (!uploadResult.success) {
+                            debugLog('File upload failed: ' + uploadResult.error, 'ERROR');
+                            showStatus('Your information was saved, but the image upload failed.', 'warning');
+                        } else {
+                            debugLog('File uploaded successfully with URL: ' + uploadResult.url, 'SUCCESS');
                             
-                            if (!updateSuccess) {
-                                debugLog('Failed to update image URL in database', 'error');
+                            // Update the record with the image URL
+                            debugLog('Updating record with image URL...', 'INFO');
+                            const updateResult = await updateImageUrl(submissionId, uploadResult.url);
+                            
+                            if (!updateResult.success) {
+                                debugLog('Failed to update image URL: ' + updateResult.error, 'ERROR');
+                                showStatus('Your information and image were saved, but we couldn\'t link them together.', 'warning');
                             } else {
-                                debugLog('Image URL updated in database', 'success');
+                                debugLog('Image URL updated successfully', 'SUCCESS');
+                                showStatus('Your information and image were saved successfully!', 'success');
                             }
                         }
                     }
                 }
                 
-                // If data was submitted successfully, show thank you page
+                // Show thank you page
                 showThankYouPage();
                 
             } catch (error) {
-                debugLog('Error during form submission: ' + error.message, 'error');
+                debugLog('Error during form submission: ' + error.message, 'ERROR');
                 showStatus('Error: ' + error.message, 'error');
-            } finally {
                 setLoading(false);
             }
         }
@@ -750,38 +879,63 @@
         // Submit data to Supabase
         async function submitDataToSupabase(data) {
             return new Promise(function(resolve) {
-                debugLog('Sending data to Supabase table: ' + validTableName, 'info');
+                debugLog('Sending data to Supabase table: ' + tableName, 'INFO');
                 
                 var xhr = new XMLHttpRequest();
-                xhr.open('POST', supabaseUrl + '/rest/v1/' + validTableName, true);
+                xhr.open('POST', supabaseUrl + '/rest/v1/' + tableName, true);
                 xhr.setRequestHeader('Content-Type', 'application/json');
                 xhr.setRequestHeader('apikey', supabaseKey);
                 xhr.setRequestHeader('Authorization', 'Bearer ' + supabaseKey);
-                xhr.setRequestHeader('Prefer', 'return=minimal');
+                xhr.setRequestHeader('Prefer', 'return=representation');
                 
                 xhr.onreadystatechange = function() {
                     if (xhr.readyState === 4) {
-                        debugLog('Response status: ' + xhr.status, 'info');
+                        debugLog('Response status: ' + xhr.status, 'INFO');
                         
                         if (xhr.status === 201 || xhr.status === 200) {
-                            debugLog('Data submission successful', 'success');
-                            resolve(true);
+                            try {
+                                var responseData = JSON.parse(xhr.responseText);
+                                var recordId = responseData && responseData.length > 0 ? responseData[0].id : null;
+                                
+                                if (recordId) {
+                                    debugLog('Data submitted successfully with ID: ' + recordId, 'SUCCESS');
+                                    resolve({
+                                        success: true,
+                                        id: recordId
+                                    });
+                                } else {
+                                    debugLog('Data submitted but could not get record ID', 'WARNING');
+                                    resolve({ 
+                                        success: true,
+                                        id: null
+                                    });
+                                }
+                            } catch (error) {
+                                debugLog('Error parsing response: ' + error.message, 'ERROR');
+                                resolve({ 
+                                    success: true,
+                                    id: null
+                                });
+                            }
                         } else {
-                            debugLog('Data submission failed: ' + xhr.responseText, 'error');
-                            resolve(false);
+                            debugLog('Data submission failed: ' + xhr.responseText, 'ERROR');
+                            resolve({
+                                success: false,
+                                error: xhr.responseText || 'Unknown error'
+                            });
                         }
                     }
                 };
                 
                 xhr.onerror = function() {
-                    debugLog('Network error during data submission', 'error');
-                    resolve(false);
+                    debugLog('Network error during data submission', 'ERROR');
+                    resolve({
+                        success: false,
+                        error: 'Network error'
+                    });
                 };
                 
-                // Send with a small delay to avoid race conditions
-                setTimeout(function() {
-                    xhr.send(JSON.stringify(data));
-                }, 100);
+                xhr.send(JSON.stringify(data));
             });
         }
         
@@ -793,7 +947,7 @@
                 var extension = getFileExtension(safeName);
                 var filename = 'image_' + fileId + '.' + extension;
                 
-                debugLog('Uploading file: ' + filename, 'info');
+                debugLog('Uploading file: ' + filename, 'INFO');
                 
                 var xhr = new XMLHttpRequest();
                 xhr.open('POST', supabaseUrl + '/storage/v1/object/form-images/' + filename, true);
@@ -802,60 +956,64 @@
                 
                 xhr.onreadystatechange = function() {
                     if (xhr.readyState === 4) {
-                        debugLog('File upload status: ' + xhr.status, 'info');
+                        debugLog('File upload status: ' + xhr.status, 'INFO');
                         
                         if (xhr.status === 201 || xhr.status === 200) {
-                            debugLog('File upload successful', 'success');
+                            debugLog('File upload successful', 'SUCCESS');
                             
-                            // Construct the public URL for the uploaded file
-                            // Format: https://{project-ref}.supabase.co/storage/v1/object/public/{bucket}/{filename}
+                            // Get project ref from URL for constructing public URL
                             var projectRef = supabaseUrl.split('//')[1].split('.')[0];
                             var publicUrl = 'https://' + projectRef + '.supabase.co/storage/v1/object/public/form-images/' + filename;
                             
-                            debugLog('Generated public URL: ' + publicUrl, 'info');
+                            debugLog('Public URL: ' + publicUrl, 'INFO');
+                            
                             resolve({
                                 success: true,
                                 url: publicUrl,
                                 filename: filename
                             });
                         } else {
-                            debugLog('File upload failed: ' + xhr.responseText, 'error');
+                            debugLog('File upload failed: ' + xhr.responseText, 'ERROR');
                             resolve({
                                 success: false,
-                                url: null
+                                error: xhr.responseText || 'Unknown error'
                             });
                         }
                     }
                 };
                 
                 xhr.onerror = function() {
-                    debugLog('Network error during file upload', 'error');
+                    debugLog('Network error during file upload', 'ERROR');
                     resolve({
                         success: false,
-                        url: null
+                        error: 'Network error'
                     });
                 };
                 
-                // In WebView environments, use plain file upload
+                // Use FormData for file upload
                 var formData = new FormData();
                 formData.append('file', file, filename);
                 
-                // Send with a small delay to avoid race conditions
-                setTimeout(function() {
-                    xhr.send(formData);
-                }, 100);
+                xhr.send(formData);
             });
         }
         
         // Update image URL in the database
-        async function updateImageUrl(tableName, imageUrl) {
+        async function updateImageUrl(recordId, imageUrl) {
             return new Promise(function(resolve) {
-                debugLog('Updating image URL in database', 'info');
+                debugLog('Updating image URL for record ID: ' + recordId, 'INFO');
+                
+                if (!recordId) {
+                    debugLog('No record ID provided, cannot update image URL', 'ERROR');
+                    resolve({
+                        success: false,
+                        error: 'No record ID'
+                    });
+                    return;
+                }
                 
                 var xhr = new XMLHttpRequest();
-                // We'll do a partial update to the most recent record with our name
-                // This is a simple approach - in a real app, you'd track the specific record ID
-                xhr.open('PATCH', supabaseUrl + '/rest/v1/' + tableName + '?has_image=eq.true&order=created_at.desc&limit=1', true);
+                xhr.open('PATCH', supabaseUrl + '/rest/v1/' + tableName + '?id=eq.' + encodeURIComponent(recordId), true);
                 xhr.setRequestHeader('Content-Type', 'application/json');
                 xhr.setRequestHeader('apikey', supabaseKey);
                 xhr.setRequestHeader('Authorization', 'Bearer ' + supabaseKey);
@@ -863,24 +1021,31 @@
                 
                 xhr.onreadystatechange = function() {
                     if (xhr.readyState === 4) {
-                        debugLog('Image URL update status: ' + xhr.status, 'info');
+                        debugLog('Image URL update status: ' + xhr.status, 'INFO');
                         
                         if (xhr.status === 204 || xhr.status === 200) {
-                            debugLog('Image URL updated successfully', 'success');
-                            resolve(true);
+                            debugLog('Image URL updated successfully', 'SUCCESS');
+                            resolve({
+                                success: true
+                            });
                         } else {
-                            debugLog('Image URL update failed: ' + xhr.responseText, 'error');
-                            resolve(false);
+                            debugLog('Image URL update failed: ' + xhr.responseText, 'ERROR');
+                            resolve({
+                                success: false,
+                                error: xhr.responseText || 'Unknown error'
+                            });
                         }
                     }
                 };
                 
                 xhr.onerror = function() {
-                    debugLog('Network error during image URL update', 'error');
-                    resolve(false);
+                    debugLog('Network error during image URL update', 'ERROR');
+                    resolve({
+                        success: false,
+                        error: 'Network error'
+                    });
                 };
                 
-                // Send the update
                 xhr.send(JSON.stringify({
                     image_url: imageUrl
                 }));
@@ -889,40 +1054,44 @@
         
         // Show thank you page
         function showThankYouPage() {
-            debugLog('Showing thank you page', 'info');
+            debugLog('Showing thank you page', 'INFO');
             formContainer.style.display = 'none';
             thankYouEl.style.display = 'block';
+            setLoading(false);
         }
         
         // Reset form
         function resetForm() {
-            debugLog('Resetting form', 'info');
+            debugLog('Resetting form', 'INFO');
             dataForm.reset();
             resetFileUpload();
             formContainer.style.display = 'block';
             thankYouEl.style.display = 'none';
             statusEl.style.display = 'none';
+            submissionId = null;
         }
         
-        // ----- Initialization -----
+        // ----- Form Initialization -----
         
         // Initialize the form
         async function initializeForm() {
+            debugLog('Initializing form...', 'INFO');
+            
             // Initialize debug panel
             initDebug();
             
             // Detect environment
             detectEnvironment();
             
-            // Find valid table
+            // Initialize database table
             try {
-                await findValidTable();
+                await initializeTable();
             } catch (error) {
-                debugLog('Error finding valid table: ' + error.message, 'error');
+                debugLog('Error initializing table: ' + error.message, 'ERROR');
                 // Continue anyway, we'll try again when submitting
             }
             
-            debugLog('Form initialized successfully', 'success');
+            debugLog('Form initialized successfully', 'SUCCESS');
         }
         
         // Start initialization
