@@ -105,6 +105,234 @@
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             max-width: 300px;
             font-size: 14px;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 5px;
+            color: white;
+            font-weight: bold;
+            z-index: 1000;
+            transition: opacity 0.3s ease-in-out;
+        }
+        
+        /* Field error styling */
+        .field-error {
+            color: red;
+            font-size: 0.8rem;
+            margin-top: 4px;
+        }
+        
+        /* File Upload Styling */
+        /* Hide the default file input */
+        input[type="file"] {
+            width: 0.1px;
+            height: 0.1px;
+            opacity: 0;
+            overflow: hidden;
+            position: absolute;
+            z-index: -1;
+        }
+
+        /* Style the custom file upload button */
+        .custom-file-upload {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background-color: #f5f5f5;
+            color: #37352F;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-bottom: 10px;
+            border: 1px solid rgba(61, 59, 53, 0.16);
+            transition: all 0.2s ease;
+        }
+
+        .custom-file-upload:hover {
+            background-color: #e9e9e9;
+        }
+
+        .custom-file-upload:active {
+            background-color: #ddd;
+        }
+
+        /* File description */
+        .file-description {
+            display: block;
+            margin-bottom: 15px;
+            color: #777;
+            font-size: 0.85rem;
+        }
+
+        /* Preview container */
+        .file-preview-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        /* Individual preview item */
+        .preview-item {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid #ddd;
+            background-color: #f9f9f9;
+        }
+
+        /* Image preview */
+        .file-preview {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Video preview */
+        .video-preview {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        .video-preview svg {
+            margin-bottom: 5px;
+        }
+
+        .video-preview span {
+            font-size: 0.7rem;
+            text-align: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 100%;
+        }
+
+        /* File info */
+        .file-info {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 2px 5px;
+            font-size: 0.65rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Remove button */
+        .remove-file {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background-color: rgba(255, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 14px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .remove-file:hover {
+            background-color: rgba(255, 0, 0, 0.9);
+        }
+
+        /* Additional files info */
+        .more-files-info {
+            width: 100%;
+            text-align: center;
+            padding: 5px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            color: #555;
+        }
+        
+        /* Button to clear all files */
+        .clear-all-files {
+            background-color: #f0f0f0;
+            color: #666;
+            border: 1px solid #ddd;
+            padding: 5px 10px;
+            font-size: 0.9rem;
+            margin-left: 10px;
+            cursor: pointer;
+        }
+        
+        .clear-all-files:hover {
+            background-color: #e0e0e0;
+        }
+        
+        /* Upload progress styling */
+        #upload-progress-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 9999;
+            width: 300px;
+            text-align: center;
+        }
+
+        #upload-progress-container h3 {
+            margin: 0 0 15px 0;
+            font-size: 18px;
+            color: #333;
+        }
+
+        .upload-progress-bar {
+            width: 100%;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            overflow: hidden;
+            height: 20px;
+        }
+
+        #upload-progress-fill {
+            width: 0%;
+            background-color: #4CAF50;
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        #upload-status-text {
+            margin: 10px 0 0 0;
+            font-size: 14px;
+            color: #555;
+        }
+
+        /* Create a semi-transparent overlay to prevent interaction while uploading */
+        .upload-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 9998;
         }
     </style>
 </head>
