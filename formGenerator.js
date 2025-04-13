@@ -1,4 +1,4 @@
-// formGenerator.js - Completely rewritten with fixes for navigation and file upload issues
+// formGenerator.js - Completely rewritten with fixes for navigation and form submission issues
 
 class FormGenerator {
   constructor(config, containerId) {
@@ -433,6 +433,11 @@ class FormGenerator {
   }
 
   createSubmitButton() {
+      const buttonContainer = document.createElement('div');
+      buttonContainer.style.display = 'flex';
+      buttonContainer.style.gap = '10px';
+      
+      // Regular submit button
       const button = document.createElement('button');
       button.type = 'submit';
       button.className = 'submit-button';
@@ -440,7 +445,33 @@ class FormGenerator {
           Envoyer
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
       `;
-      return button;
+      
+      // Debug button (helps test form submission)
+      const debugButton = document.createElement('button');
+      debugButton.type = 'button';
+      debugButton.className = 'debug-button';
+      debugButton.textContent = 'Debug/Export';
+      
+      // Store reference to this
+      const self = this;
+      
+      // Add click handler to debug button
+      debugButton.addEventListener('click', function(e) {
+          e.preventDefault();
+          console.log('Debug button clicked - downloading form data');
+          
+          // Update form data
+          self.updateFormData();
+          
+          // Download data as JSON file
+          self.downloadFormData();
+      });
+      
+      // Add buttons to container
+      buttonContainer.appendChild(button);
+      buttonContainer.appendChild(debugButton);
+      
+      return buttonContainer;
   }
 
   // Navigation methods
@@ -646,25 +677,24 @@ class FormGenerator {
       // Store instance reference for event handler
       const self = this;
       
-      // Form submission
-      form.addEventListener('submit', async function(e) {
+      // Form submission - using both submit event and direct button click
+      form.addEventListener('submit', function(e) {
           e.preventDefault();
-          console.log('Form submitted');
-          
-          // Update form data
-          self.updateFormData();
-          
-          try {
-              // Submit to Supabase
-              await self.submitFormData(self.formData);
-              
-              // Show thank you page on success
-              self.showPage('thankYouPage');
-          } catch (error) {
-              console.error('Form submission failed:', error);
-              self.showNotification('Erreur lors de l\'envoi du formulaire. Veuillez réessayer.', 'error');
-          }
+          console.log('Form submit event triggered');
+          self.handleFormSubmission();
       });
+      
+      // Also add direct click handler to the submit button as a fallback
+      const submitButton = document.querySelector('button[type="submit"]');
+      if (submitButton) {
+          submitButton.addEventListener('click', function(e) {
+              e.preventDefault();
+              console.log('Submit button clicked directly');
+              self.handleFormSubmission();
+          });
+      } else {
+          console.error('Submit button not found!');
+      }
 
       // Track changes for conditional logic
       form.addEventListener('change', function(e) {
@@ -675,9 +705,70 @@ class FormGenerator {
       });
   }
   
+  // Handle form submission
+  async handleFormSubmission() {
+      console.log('Handling form submission');
+      
+      // Update form data
+      this.updateFormData();
+      
+      // Validate final page
+      if (!this.validatePage('page3-forms')) {
+          console.error('Final page validation failed');
+          this.showNotification('Veuillez remplir tous les champs obligatoires', 'error');
+          return;
+      }
+      
+      // Debug output of form data to verify 
+      console.log('Complete form data to be submitted:', this.formData);
+      
+      try {
+          // First test if Supabase is available
+          if (typeof supabase === 'undefined') {
+              console.error('Supabase client is not defined! Check supabaseClient.js');
+              this.showNotification('Erreur de connexion à la base de données. Vérifiez la console.', 'error');
+              
+              // Debug fallback - download data as JSON
+              this.downloadFormData();
+              return;
+          }
+          
+          // Try a simple Supabase call to test the connection
+          try {
+              const { data, error } = await supabase.from('quality_reports').select('count').limit(1);
+              if (error) {
+                  console.error('Supabase connection test failed:', error);
+                  this.showNotification('Erreur de connexion à Supabase. Vérifiez la configuration.', 'error');
+                  this.downloadFormData();
+                  return;
+              }
+              console.log('Supabase connection test succeeded');
+          } catch (connError) {
+              console.error('Supabase connection exception:', connError);
+              this.showNotification('Erreur lors de la connexion à Supabase', 'error');
+              this.downloadFormData();
+              return;
+          }
+          
+          // Proceed with normal submission
+          await this.submitFormData(this.formData);
+          
+          // Show thank you page on success
+          this.showPage('thankYouPage');
+      } catch (error) {
+          console.error('Form submission process failed:', error);
+          this.showNotification('Erreur lors de l\'envoi du formulaire. Vérifiez la console.', 'error');
+          
+          // Fallback - download the form data
+          this.downloadFormData();
+      }
+  }
+  
   // Submit form data to Supabase
   async submitFormData(formData) {
       try {
+          console.log('Starting submitFormData process');
+          
           // Format data for Supabase
           const supabaseData = this.formatDataForSupabase(formData);
           
@@ -687,7 +778,14 @@ class FormGenerator {
           // Handle file uploads first (if any)
           let fileUploads = [];
           if (formData.fileUpload && formData.fileUpload.length > 0) {
-              fileUploads = await this.uploadFilesToSupabase(formData.fileUpload);
+              console.log('Uploading files...');
+              try {
+                  fileUploads = await this.uploadFilesToSupabase(formData.fileUpload);
+                  console.log('File uploads completed:', fileUploads);
+              } catch (fileError) {
+                  console.error('File upload error:', fileError);
+                  this.showNotification('Erreur lors du téléchargement des fichiers, mais nous continuons la soumission du formulaire', 'error');
+              }
           }
           
           // Add file data to the record
@@ -702,9 +800,12 @@ class FormGenerator {
               .from('quality_reports')
               .insert([supabaseData]);
           
-          if (error) throw error;
+          if (error) {
+              console.error('Supabase insert error:', error);
+              throw error;
+          }
           
-          console.log('Data saved to Supabase:', data);
+          console.log('Data saved to Supabase successfully:', data);
           
           // Show success message
           this.showNotification('Rapport enregistré avec succès!', 'success');
@@ -714,7 +815,7 @@ class FormGenerator {
           console.error('Error saving to Supabase:', error);
           
           // Show error message
-          this.showNotification('Erreur lors de l\'enregistrement du rapport. Veuillez réessayer.', 'error');
+          this.showNotification('Erreur lors de l\'enregistrement du rapport: ' + error.message, 'error');
           
           throw error;
       } finally {
@@ -991,6 +1092,31 @@ class FormGenerator {
               notification.remove();
           }, 300); // Match the transition duration
       }, 3000);
+  }
+  
+  // Fallback method to download form data as JSON
+  downloadFormData() {
+      try {
+          // Convert form data to JSON
+          const formDataJson = JSON.stringify(this.formData, null, 2);
+          
+          // Create blob and download link
+          const blob = new Blob([formDataJson], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `quality-report-${new Date().toISOString().slice(0, 10)}.json`;
+          
+          // Append to body, click and remove
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          this.showNotification('Les données du formulaire ont été téléchargées en tant que fichier JSON', 'info');
+      } catch (error) {
+          console.error('Failed to download form data:', error);
+      }
   }
   
   // Reset the form
