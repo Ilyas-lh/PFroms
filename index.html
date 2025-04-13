@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple Form</title>
+    <title>Simple Form with Image Upload</title>
     <style>
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
@@ -120,6 +120,71 @@
         .page.active {
             display: block;
         }
+        
+        /* File upload styling */
+        .file-upload-container {
+            margin-top: 10px;
+        }
+        
+        .file-input {
+            width: 0.1px;
+            height: 0.1px;
+            opacity: 0;
+            overflow: hidden;
+            position: absolute;
+            z-index: -1;
+        }
+        
+        .file-label {
+            display: inline-flex;
+            align-items: center;
+            padding: 10px 15px;
+            background-color: #f0f0f0;
+            color: #333;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+        }
+        
+        .file-label:hover {
+            background-color: #e0e0e0;
+        }
+        
+        .file-label svg {
+            margin-right: 8px;
+        }
+        
+        .file-info {
+            margin-top: 5px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        .image-preview {
+            margin-top: 15px;
+            max-width: 100%;
+            display: none;
+        }
+        
+        .image-preview img {
+            max-width: 300px;
+            max-height: 200px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        
+        .remove-file {
+            background-color: #ff5252;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            margin-left: 10px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
     </style>
 </head>
 <body>
@@ -141,6 +206,26 @@
             <div class="form-group">
                 <label for="favoriteNumber">Your Favorite Number:</label>
                 <input type="number" id="favoriteNumber" name="favoriteNumber" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="fileUpload">Upload Image:</label>
+                <div class="file-upload-container">
+                    <input type="file" id="fileUpload" name="fileUpload" accept="image/*" class="file-input">
+                    <label for="fileUpload" class="file-label">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        Select Image
+                    </label>
+                    <div class="file-info" id="fileInfo">No file selected</div>
+                    <div class="image-preview" id="imagePreview">
+                        <img id="previewImg" src="" alt="Preview">
+                        <button type="button" class="remove-file" id="removeFile">Remove</button>
+                    </div>
+                </div>
             </div>
             
             <button type="submit" id="submitBtn">
@@ -187,6 +272,39 @@
             
             supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
             addStatus('Supabase client initialized successfully');
+            
+            // Test storage bucket access
+            addStatus('Testing Supabase Storage access...');
+            supabaseClient.storage.listBuckets()
+                .then(response => {
+                    if (response.error) {
+                        addStatus('Storage access error: ' + response.error.message, true);
+                    } else {
+                        // Check if our bucket exists
+                        const buckets = response.data || [];
+                        const formBucket = buckets.find(b => b.name === 'form-images');
+                        
+                        if (formBucket) {
+                            addStatus('Found form-images bucket');
+                        } else {
+                            addStatus('Creating form-images bucket...');
+                            // Create the bucket if it doesn't exist
+                            supabaseClient.storage.createBucket('form-images', {
+                                public: true,
+                                fileSizeLimit: 5242880 // 5MB
+                            }).then(response => {
+                                if (response.error) {
+                                    addStatus('Error creating bucket: ' + response.error.message, true);
+                                } else {
+                                    addStatus('Created form-images bucket successfully');
+                                }
+                            });
+                        }
+                    }
+                })
+                .catch(error => {
+                    addStatus('Storage test error: ' + error.message, true);
+                });
         } catch (error) {
             addStatus('Error initializing Supabase: ' + error.message, true);
         }
@@ -239,6 +357,52 @@
             document.getElementById(pageId).classList.add('active');
         }
         
+        // Upload file to Supabase Storage
+        async function uploadFile(file) {
+            if (!file) return null;
+            
+            try {
+                // Create a unique filename
+                const fileExt = file.name.split('.').pop();
+                const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+                const filePath = `${fileName}`;
+                
+                addStatus(`Uploading file: ${file.name}...`);
+                
+                // Upload to Supabase Storage
+                const { data, error } = await supabaseClient.storage
+                    .from('form-images')
+                    .upload(filePath, file, {
+                        cacheControl: '3600',
+                        upsert: false
+                    });
+                
+                if (error) {
+                    addStatus('Error uploading file: ' + error.message, true);
+                    throw error;
+                }
+                
+                addStatus('File uploaded successfully');
+                
+                // Get the public URL
+                const { data: urlData } = supabaseClient.storage
+                    .from('form-images')
+                    .getPublicUrl(filePath);
+                
+                return {
+                    path: filePath,
+                    url: urlData.publicUrl,
+                    name: file.name,
+                    size: file.size,
+                    type: file.type
+                };
+            } catch (error) {
+                console.error('File upload error:', error);
+                showNotification('Error uploading file: ' + error.message, 'error');
+                return null;
+            }
+        }
+        
         // Submit form
         async function submitForm(data) {
             try {
@@ -250,10 +414,23 @@
                     return false;
                 }
                 
+                // Upload image if selected
+                let imageData = null;
+                if (data.fileUpload) {
+                    imageData = await uploadFile(data.fileUpload);
+                    if (!imageData && data.fileUpload) {
+                        // File upload failed but was attempted
+                        return false;
+                    }
+                }
+                
                 // Format data for Supabase
                 const supabaseData = {
                     name: data.name,
-                    favorite_number: parseInt(data.favoriteNumber) || 0
+                    favorite_number: parseInt(data.favoriteNumber) || 0,
+                    image_url: imageData ? imageData.url : null,
+                    image_path: imageData ? imageData.path : null,
+                    image_name: imageData ? imageData.name : null
                 };
                 
                 console.log('Submitting data:', supabaseData);
@@ -284,6 +461,9 @@
         // Reset form
         function resetForm() {
             document.getElementById('simpleForm').reset();
+            document.getElementById('fileInfo').textContent = 'No file selected';
+            document.getElementById('imagePreview').style.display = 'none';
+            document.getElementById('previewImg').src = '';
             showPage('page1');
         }
         
@@ -291,12 +471,49 @@
         document.addEventListener('DOMContentLoaded', function() {
             addStatus('DOM loaded, setting up form');
             
+            // File input change handler
+            const fileInput = document.getElementById('fileUpload');
+            const fileInfo = document.getElementById('fileInfo');
+            const imagePreview = document.getElementById('imagePreview');
+            const previewImg = document.getElementById('previewImg');
+            const removeFile = document.getElementById('removeFile');
+            
+            fileInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    const file = this.files[0];
+                    
+                    // Update file info
+                    fileInfo.textContent = `Selected: ${file.name} (${formatFileSize(file.size)})`;
+                    
+                    // Show image preview
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        previewImg.src = e.target.result;
+                        imagePreview.style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    fileInfo.textContent = 'No file selected';
+                    imagePreview.style.display = 'none';
+                }
+            });
+            
+            // Remove file button
+            removeFile.addEventListener('click', function() {
+                fileInput.value = '';
+                fileInfo.textContent = 'No file selected';
+                imagePreview.style.display = 'none';
+                previewImg.src = '';
+            });
+            
+            // Form submission
             document.getElementById('simpleForm').addEventListener('submit', async function(e) {
                 e.preventDefault();
                 
                 const formData = {
                     name: document.getElementById('name').value,
-                    favoriteNumber: document.getElementById('favoriteNumber').value
+                    favoriteNumber: document.getElementById('favoriteNumber').value,
+                    fileUpload: fileInput.files[0] || null
                 };
                 
                 // Validate form
@@ -312,6 +529,13 @@
                     showPage('thankYouPage');
                 }
             });
+            
+            // Helper function to format file size
+            function formatFileSize(bytes) {
+                if (bytes < 1024) return bytes + ' bytes';
+                else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+                else return (bytes / 1048576).toFixed(1) + ' MB';
+            }
         });
     </script>
 </body>
