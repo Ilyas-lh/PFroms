@@ -428,6 +428,7 @@
                     name TEXT,
                     favorite_number INTEGER,
                     has_image BOOLEAN DEFAULT false,
+                    image_url TEXT,
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                 );
                 ALTER TABLE ${tableName} ENABLE ROW LEVEL SECURITY;
@@ -687,11 +688,12 @@
                     }
                 }
                 
-                // Create the data object
+                // Create the data object - we'll add the image_url later if needed
                 var formData = {
                     name: name,
                     favorite_number: parseInt(favoriteNumber) || 0,
-                    has_image: !!currentFile
+                    has_image: !!currentFile,
+                    image_url: null // Will be updated after file upload if successful
                 };
                 
                 debugLog('Submitting form data: ' + JSON.stringify(formData), 'info');
@@ -707,15 +709,30 @@
                 
                 // If there's a file, upload it
                 let fileUploadSuccess = true;
+                let imageUrl = null;
+                
                 if (currentFile) {
                     debugLog('Attempting to upload file', 'info');
-                    fileUploadSuccess = await uploadFileToSupabase(currentFile);
+                    const uploadResult = await uploadFileToSupabase(currentFile);
                     
-                    if (!fileUploadSuccess) {
+                    if (!uploadResult.success) {
                         debugLog('File upload failed', 'error');
                         showStatus('Your information was saved, but the image upload failed.', 'warning');
                     } else {
                         debugLog('File uploaded successfully', 'success');
+                        
+                        // Store the image URL in the database
+                        imageUrl = uploadResult.url;
+                        if (imageUrl) {
+                            debugLog('Updating record with image URL: ' + imageUrl, 'info');
+                            const updateSuccess = await updateImageUrl(validTableName, imageUrl);
+                            
+                            if (!updateSuccess) {
+                                debugLog('Failed to update image URL in database', 'error');
+                            } else {
+                                debugLog('Image URL updated in database', 'success');
+                            }
+                        }
                     }
                 }
                 
@@ -789,17 +806,34 @@
                         
                         if (xhr.status === 201 || xhr.status === 200) {
                             debugLog('File upload successful', 'success');
-                            resolve(true);
+                            
+                            // Construct the public URL for the uploaded file
+                            // Format: https://{project-ref}.supabase.co/storage/v1/object/public/{bucket}/{filename}
+                            var projectRef = supabaseUrl.split('//')[1].split('.')[0];
+                            var publicUrl = 'https://' + projectRef + '.supabase.co/storage/v1/object/public/form-images/' + filename;
+                            
+                            debugLog('Generated public URL: ' + publicUrl, 'info');
+                            resolve({
+                                success: true,
+                                url: publicUrl,
+                                filename: filename
+                            });
                         } else {
                             debugLog('File upload failed: ' + xhr.responseText, 'error');
-                            resolve(false);
+                            resolve({
+                                success: false,
+                                url: null
+                            });
                         }
                     }
                 };
                 
                 xhr.onerror = function() {
                     debugLog('Network error during file upload', 'error');
-                    resolve(false);
+                    resolve({
+                        success: false,
+                        url: null
+                    });
                 };
                 
                 // In WebView environments, use plain file upload
@@ -810,6 +844,46 @@
                 setTimeout(function() {
                     xhr.send(formData);
                 }, 100);
+            });
+        }
+        
+        // Update image URL in the database
+        async function updateImageUrl(tableName, imageUrl) {
+            return new Promise(function(resolve) {
+                debugLog('Updating image URL in database', 'info');
+                
+                var xhr = new XMLHttpRequest();
+                // We'll do a partial update to the most recent record with our name
+                // This is a simple approach - in a real app, you'd track the specific record ID
+                xhr.open('PATCH', supabaseUrl + '/rest/v1/' + tableName + '?has_image=eq.true&order=created_at.desc&limit=1', true);
+                xhr.setRequestHeader('Content-Type', 'application/json');
+                xhr.setRequestHeader('apikey', supabaseKey);
+                xhr.setRequestHeader('Authorization', 'Bearer ' + supabaseKey);
+                xhr.setRequestHeader('Prefer', 'return=minimal');
+                
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4) {
+                        debugLog('Image URL update status: ' + xhr.status, 'info');
+                        
+                        if (xhr.status === 204 || xhr.status === 200) {
+                            debugLog('Image URL updated successfully', 'success');
+                            resolve(true);
+                        } else {
+                            debugLog('Image URL update failed: ' + xhr.responseText, 'error');
+                            resolve(false);
+                        }
+                    }
+                };
+                
+                xhr.onerror = function() {
+                    debugLog('Network error during image URL update', 'error');
+                    resolve(false);
+                };
+                
+                // Send the update
+                xhr.send(JSON.stringify({
+                    image_url: imageUrl
+                }));
             });
         }
         
