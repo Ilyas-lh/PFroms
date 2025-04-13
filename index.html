@@ -1,110 +1,470 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Form with iframe Upload</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>Adaptive Form</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            max-width: 500px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 600px;
             margin: 0 auto;
             padding: 20px;
+            color: #333;
+        }
+        
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
         }
         
         .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
         
         label {
             display: block;
-            margin-bottom: 5px;
             font-weight: bold;
+            margin-bottom: 5px;
         }
         
         input[type="text"],
         input[type="number"] {
             width: 100%;
-            padding: 8px;
+            padding: 10px;
             border: 1px solid #ccc;
             border-radius: 4px;
             font-size: 16px;
+            box-sizing: border-box;
         }
         
-        button {
-            background-color: #000;
+        /* Upload area styles */
+        .upload-container {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .upload-container:hover {
+            border-color: #999;
+        }
+        
+        .upload-icon {
+            display: block;
+            margin: 0 auto 10px;
+            width: 48px;
+            height: 48px;
+        }
+        
+        /* Hide actual file input */
+        .file-input {
+            position: absolute;
+            width: 0.1px;
+            height: 0.1px;
+            opacity: 0;
+            overflow: hidden;
+            z-index: -1;
+        }
+        
+        .upload-label {
+            font-size: 16px;
+            color: #333;
+            display: block;
+        }
+        
+        .upload-hint {
+            font-size: 12px;
+            color: #777;
+            margin-top: 10px;
+        }
+        
+        /* Preview area */
+        .preview-container {
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .preview-container img {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        
+        .file-info {
+            margin-top: 5px;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .remove-file {
+            background-color: #ff4444;
             color: white;
             border: none;
-            padding: 10px 15px;
+            padding: 5px 10px;
             border-radius: 4px;
-            font-size: 16px;
+            margin-top: 5px;
             cursor: pointer;
         }
         
-        iframe {
-            border: 1px solid #ddd;
+        /* Submit button */
+        .submit-btn {
+            background-color: #000;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
             width: 100%;
-            height: 150px;
-            margin-bottom: 15px;
+        }
+        
+        .submit-btn:hover {
+            background-color: #333;
+        }
+        
+        /* Status message */
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
         }
         
         .success {
             background-color: #e6ffe6;
             border: 1px solid #99cc99;
-            padding: 10px;
-            margin-top: 20px;
-            border-radius: 4px;
+            color: #006600;
+        }
+        
+        .error {
+            background-color: #ffe6e6;
+            border: 1px solid #cc9999;
+            color: #cc0000;
+        }
+        
+        /* Environment indicator */
+        .env-indicator {
+            position: fixed;
+            top: 5px;
+            right: 5px;
+            font-size: 10px;
+            padding: 3px 6px;
+            background: #eee;
+            border-radius: 3px;
+            color: #666;
+        }
+        
+        /* Thank you page */
+        #thank-you {
+            text-align: center;
             display: none;
+        }
+        
+        #thank-you h1 {
+            font-size: 28px;
+            margin-bottom: 15px;
         }
     </style>
 </head>
 <body>
-    <h1>Form with iframe Upload</h1>
+    <div id="environment" class="env-indicator">Detecting...</div>
     
-    <div class="form-group">
-        <label for="name">Your Name:</label>
-        <input type="text" id="name" name="name" required>
+    <div id="form-container">
+        <h1>Simple Form</h1>
+        
+        <form id="data-form">
+            <div class="form-group">
+                <label for="name">Your Name:</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="favorite-number">Your Favorite Number:</label>
+                <input type="number" id="favorite-number" name="favorite_number" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Image Upload (Optional):</label>
+                
+                <!-- Adaptive file upload area -->
+                <div id="upload-container" class="upload-container">
+                    <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path fill="currentColor" d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+                    </svg>
+                    <input type="file" id="file-input" class="file-input" accept="image/*">
+                    <span class="upload-label">Click to select an image</span>
+                    <p class="upload-hint">Maximum size: 5MB</p>
+                </div>
+                
+                <!-- Image preview -->
+                <div id="preview-container" class="preview-container">
+                    <img id="preview-image" src="" alt="Preview">
+                    <div id="file-info" class="file-info"></div>
+                    <button type="button" id="remove-file" class="remove-file">Remove</button>
+                </div>
+            </div>
+            
+            <div id="status" class="status"></div>
+            
+            <button type="submit" id="submit-btn" class="submit-btn">Submit</button>
+        </form>
     </div>
     
-    <div class="form-group">
-        <label for="favorite_number">Your Favorite Number:</label>
-        <input type="number" id="favorite_number" name="favorite_number" required>
-    </div>
-    
-    <div class="form-group">
-        <label>Image Upload:</label>
-        <!-- The iframe will contain a simple file upload form -->
-        <iframe id="upload-frame" src="upload-frame.html"></iframe>
-    </div>
-    
-    <button type="button" id="submit-btn">Submit</button>
-    
-    <div id="success" class="success">
-        Form submitted successfully!
+    <div id="thank-you">
+        <h1>Thank You!</h1>
+        <p>Your response has been submitted successfully.</p>
+        <button id="new-response" class="submit-btn">Submit Another Response</button>
     </div>
     
     <script>
-        // Extremely simple handler
-        document.getElementById('submit-btn').onclick = function() {
-            // Get form data
-            var name = document.getElementById('name').value;
-            var favoriteNumber = document.getElementById('favorite_number').value;
+        // ----- Environment Detection -----
+        (function detectEnvironment() {
+            var isWebView = false;
             
-            if (name && favoriteNumber) {
-                // This would normally send data to server
-                document.getElementById('success').style.display = 'block';
-                
-                // Tell the iframe to submit its form too (if it has a file)
-                try {
-                    var frame = document.getElementById('upload-frame');
-                    frame.contentWindow.postMessage('submit', '*');
-                } catch(e) {
-                    console.error('Error communicating with iframe:', e);
+            // Check for common WebView indicators
+            if (window.navigator.userAgent.indexOf('Android') !== -1) {
+                // Check for typical Android WebView strings
+                if (window.navigator.userAgent.indexOf('wv') !== -1 || 
+                    window.navigator.userAgent.indexOf('Version/') !== -1 && 
+                    window.navigator.userAgent.indexOf('Chrome/') !== -1) {
+                    isWebView = true;
                 }
-            } else {
-                alert('Please fill in all required fields');
+            } else if (window.navigator.userAgent.indexOf('iPhone') !== -1 || 
+                       window.navigator.userAgent.indexOf('iPad') !== -1) {
+                // Check for iOS WebView indicators
+                if (!window.navigator.standalone &&
+                    !window.safari) {
+                    isWebView = true;
+                }
             }
-        };
+            
+            // Mark the environment
+            var env = document.getElementById('environment');
+            if (isWebView) {
+                env.textContent = 'App WebView';
+                document.body.classList.add('webview-environment');
+            } else {
+                env.textContent = 'Web Browser';
+                document.body.classList.add('browser-environment');
+            }
+        })();
+        
+        // ----- Global Variables -----
+        var currentFile = null;
+        var supabaseUrl = 'https://wccszfsbabbyrzltbavd.supabase.co';
+        var supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjY3N6ZnNiYWJieXJ6bHRiYXZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ0NzI5MzAsImV4cCI6MjA2MDA0ODkzMH0.WZximkNPAOOw2MUZYlIebCed7w0sAkamO6ceVSQ9Iz8';
+        
+        // ----- Element References -----
+        var uploadContainer = document.getElementById('upload-container');
+        var fileInput = document.getElementById('file-input');
+        var previewContainer = document.getElementById('preview-container');
+        var previewImage = document.getElementById('preview-image');
+        var fileInfo = document.getElementById('file-info');
+        var removeFileBtn = document.getElementById('remove-file');
+        var dataForm = document.getElementById('data-form');
+        var submitBtn = document.getElementById('submit-btn');
+        var statusEl = document.getElementById('status');
+        var formContainer = document.getElementById('form-container');
+        var thankYouEl = document.getElementById('thank-you');
+        var newResponseBtn = document.getElementById('new-response');
+        
+        // ----- Event Listeners -----
+        
+        // Trigger file input when container is clicked
+        uploadContainer.addEventListener('click', function() {
+            fileInput.click();
+        });
+        
+        // Handle file selection
+        fileInput.addEventListener('change', function(e) {
+            handleFileSelection(e);
+        });
+        
+        // Remove file button
+        removeFileBtn.addEventListener('click', function() {
+            resetFileUpload();
+        });
+        
+        // Form submission
+        dataForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            submitForm();
+        });
+        
+        // New response button
+        newResponseBtn.addEventListener('click', function() {
+            resetForm();
+        });
+        
+        // ----- Helper Functions -----
+        
+        // Handle file selection
+        function handleFileSelection(e) {
+            var file = e.target.files[0];
+            if (!file) return;
+            
+            // Check file size (max 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                showStatus('File is too large. Maximum size is 5MB.', 'error');
+                resetFileUpload();
+                return;
+            }
+            
+            // Store the file for later upload
+            currentFile = file;
+            
+            // Update UI
+            fileInfo.textContent = file.name + ' (' + formatFileSize(file.size) + ')';
+            
+            // Show preview
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                previewImage.src = e.target.result;
+                uploadContainer.style.display = 'none';
+                previewContainer.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        // Format file size
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            else if (bytes < 1048576) return Math.round(bytes / 1024) + ' KB';
+            else return Math.round(bytes / 1048576 * 10) / 10 + ' MB';
+        }
+        
+        // Reset file upload
+        function resetFileUpload() {
+            fileInput.value = '';
+            currentFile = null;
+            previewContainer.style.display = 'none';
+            uploadContainer.style.display = 'block';
+        }
+        
+        // Show status message
+        function showStatus(message, type) {
+            statusEl.textContent = message;
+            statusEl.className = 'status ' + type;
+            statusEl.style.display = 'block';
+            
+            // Auto-hide after 5 seconds
+            setTimeout(function() {
+                statusEl.style.display = 'none';
+            }, 5000);
+        }
+        
+        // Generate a random ID without using Date
+        function generateId() {
+            return Math.random().toString(36).substring(2, 15) + 
+                   Math.random().toString(36).substring(2, 15);
+        }
+        
+        // Submit form - using a simpler approach
+        function submitForm() {
+            var name = document.getElementById('name').value;
+            var favoriteNumber = document.getElementById('favorite-number').value;
+            
+            if (!name || !favoriteNumber) {
+                showStatus('Please fill in all required fields.', 'error');
+                return;
+            }
+            
+            // Disable submit button
+            submitBtn.disabled = true;
+            
+            // Create the data object
+            var formData = {
+                name: name,
+                favorite_number: parseInt(favoriteNumber),
+                has_image: !!currentFile
+            };
+            
+            // First, submit the form data
+            submitDataToSupabase(formData)
+                .then(function(success) {
+                    if (success) {
+                        // If there's a file, upload it
+                        if (currentFile) {
+                            uploadFileToSupabase(currentFile)
+                                .then(function(fileSuccess) {
+                                    submitBtn.disabled = false;
+                                    if (fileSuccess) {
+                                        showThankYouPage();
+                                    } else {
+                                        showStatus('Form data saved but image upload failed.', 'error');
+                                    }
+                                });
+                        } else {
+                            // No file to upload
+                            submitBtn.disabled = false;
+                            showThankYouPage();
+                        }
+                    } else {
+                        submitBtn.disabled = false;
+                        showStatus('Failed to submit form data. Please try again.', 'error');
+                    }
+                });
+        }
+        
+        // Submit data to Supabase
+        function submitDataToSupabase(data) {
+            return new Promise(function(resolve) {
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', supabaseUrl + '/rest/v1/simple_form', true);
+                xhr.setRequestHeader('Content-Type', 'application/json');
+                xhr.setRequestHeader('apikey', supabaseKey);
+                xhr.setRequestHeader('Authorization', 'Bearer ' + supabaseKey);
+                
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4) {
+                        resolve(xhr.status === 201 || xhr.status === 200);
+                    }
+                };
+                
+                xhr.send(JSON.stringify(data));
+            });
+        }
+        
+        // Upload file to Supabase Storage using minimal code
+        function uploadFileToSupabase(file) {
+            return new Promise(function(resolve) {
+                var fileId = generateId();
+                var extension = file.name.split('.').pop();
+                var filename = 'image_' + fileId + '.' + extension;
+                
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', supabaseUrl + '/storage/v1/object/form-images/' + filename, true);
+                xhr.setRequestHeader('apikey', supabaseKey);
+                xhr.setRequestHeader('Authorization', 'Bearer ' + supabaseKey);
+                
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4) {
+                        resolve(xhr.status === 201 || xhr.status === 200);
+                    }
+                };
+                
+                xhr.send(file);
+            });
+        }
+        
+        // Show thank you page
+        function showThankYouPage() {
+            formContainer.style.display = 'none';
+            thankYouEl.style.display = 'block';
+        }
+        
+        // Reset form
+        function resetForm() {
+            dataForm.reset();
+            resetFileUpload();
+            formContainer.style.display = 'block';
+            thankYouEl.style.display = 'none';
+            statusEl.style.display = 'none';
+        }
     </script>
 </body>
 </html>
