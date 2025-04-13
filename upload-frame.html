@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 10px;
+        }
+        
+        .file-upload {
+            margin-bottom: 10px;
+        }
+        
+        .file-status {
+            font-size: 12px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="file-upload">
+        <input type="file" id="file-input" accept="image/*">
+        <div id="file-status" class="file-status">No file selected</div>
+    </div>
+    
+    <script>
+        // Update file status when a file is selected
+        document.getElementById('file-input').onchange = function() {
+            var status = document.getElementById('file-status');
+            if (this.files.length > 0) {
+                status.textContent = 'Selected: ' + this.files[0].name;
+            } else {
+                status.textContent = 'No file selected';
+            }
+        };
+        
+        // Listen for message from parent window
+        window.addEventListener('message', function(event) {
+            if (event.data === 'submit') {
+                var fileInput = document.getElementById('file-input');
+                if (fileInput.files.length > 0) {
+                    // In a real implementation, you'd upload the file here
+                    // For demo purposes, just show a message
+                    document.getElementById('file-status').textContent = 'Upload started for: ' + fileInput.files[0].name;
+                    
+                    // Simulate upload success
+                    setTimeout(function() {
+                        document.getElementById('file-status').textContent = 'Upload completed!';
+                    }, 1000);
+                }
+            }
+        }, false);
+    </script>
+</body>
+</html>

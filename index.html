@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Basic Form</title>
+    <title>Form with iframe Upload</title>
     <style>
         body {
-            font-family: sans-serif;
+            font-family: Arial, sans-serif;
             max-width: 500px;
             margin: 0 auto;
             padding: 20px;
@@ -41,6 +41,13 @@
             cursor: pointer;
         }
         
+        iframe {
+            border: 1px solid #ddd;
+            width: 100%;
+            height: 150px;
+            margin-bottom: 15px;
+        }
+        
         .success {
             background-color: #e6ffe6;
             border: 1px solid #99cc99;
@@ -52,38 +59,51 @@
     </style>
 </head>
 <body>
-    <h1>Simple Form</h1>
+    <h1>Form with iframe Upload</h1>
     
-    <!-- Basic form with traditional multipart/form-data submission -->
-    <form id="simple-form" action="https://httpbin.org/post" method="post" enctype="multipart/form-data">
-        <div class="form-group">
-            <label for="name">Your Name:</label>
-            <input type="text" id="name" name="name" required>
-        </div>
-        
-        <div class="form-group">
-            <label for="favorite_number">Your Favorite Number:</label>
-            <input type="number" id="favorite_number" name="favorite_number" required>
-        </div>
-        
-        <div class="form-group">
-            <label for="image">Image Upload:</label>
-            <input type="file" id="image" name="image" accept="image/*">
-        </div>
-        
-        <button type="submit">Submit</button>
-    </form>
+    <div class="form-group">
+        <label for="name">Your Name:</label>
+        <input type="text" id="name" name="name" required>
+    </div>
+    
+    <div class="form-group">
+        <label for="favorite_number">Your Favorite Number:</label>
+        <input type="number" id="favorite_number" name="favorite_number" required>
+    </div>
+    
+    <div class="form-group">
+        <label>Image Upload:</label>
+        <!-- The iframe will contain a simple file upload form -->
+        <iframe id="upload-frame" src="upload-frame.html"></iframe>
+    </div>
+    
+    <button type="button" id="submit-btn">Submit</button>
     
     <div id="success" class="success">
         Form submitted successfully!
     </div>
     
     <script>
-        // Minimal JavaScript just to prevent form from navigating away
-        document.getElementById('simple-form').onsubmit = function(e) {
-            e.preventDefault();
-            document.getElementById('success').style.display = 'block';
-            return false;
+        // Extremely simple handler
+        document.getElementById('submit-btn').onclick = function() {
+            // Get form data
+            var name = document.getElementById('name').value;
+            var favoriteNumber = document.getElementById('favorite_number').value;
+            
+            if (name && favoriteNumber) {
+                // This would normally send data to server
+                document.getElementById('success').style.display = 'block';
+                
+                // Tell the iframe to submit its form too (if it has a file)
+                try {
+                    var frame = document.getElementById('upload-frame');
+                    frame.contentWindow.postMessage('submit', '*');
+                } catch(e) {
+                    console.error('Error communicating with iframe:', e);
+                }
+            } else {
+                alert('Please fill in all required fields');
+            }
         };
     </script>
 </body>
