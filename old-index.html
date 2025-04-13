@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Form</title>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #37352F;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 2.5rem;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        input[type="text"], 
+        input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(61, 59, 53, 0.16);
+            box-shadow: rgba(0, 0, 0, 0.12) 0px 1px 1px 0px, 
+                        rgba(61, 59, 53, 0.16) 0px 0px 0px 1px, 
+                        rgba(61, 59, 53, 0.08) 0px 2px 5px 0px;
+        }
+        
+        button {
+            background-color: #000000;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        button:hover {
+            background-color: #333333;
+        }
+        
+        .form-page {
+            display: none;
+        }
+        
+        .form-page.active {
+            display: block;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 30px;
+        }
+        
+        /* Loading spinner */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Notification styling */
+        #form-notification {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 300px;
+            font-size: 14px;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 5px;
+            color: white;
+            font-weight: bold;
+            z-index: 1000;
+            transition: opacity 0.3s ease-in-out;
+        }
+        
+        /* Field error styling */
+        .field-error {
+            color: red;
+            font-size: 0.8rem;
+            margin-top: 4px;
+        }
+        
+        /* Status panel */
+        #status-panel {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .status-success {
+            color: green;
+        }
+        
+        .status-error {
+            color: red;
+        }
+        
+        .status-item {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Status panel for debugging -->
+    <div id="status-panel">
+        <h3>Connection Status</h3>
+        <div id="status-items"></div>
+    </div>
+    
+    <!-- This div will contain your dynamically generated form -->
+    <div id="form-container"></div>
+
+    <!-- Load scripts with proper error handling -->
+    <script>
+        // Helper function to add status messages
+        function addStatus(message, isError = false) {
+            const statusItems = document.getElementById('status-items');
+            const item = document.createElement('div');
+            item.className = 'status-item' + (isError ? ' status-error' : ' status-success');
+            item.textContent = message;
+            statusItems.appendChild(item);
+            console.log(isError ? 'ERROR: ' : 'INFO: ', message);
+        }
+        
+        // Function to load scripts in sequence
+        function loadScript(url, callback) {
+            const script = document.createElement('script');
+            script.type = 'text/javascript';
+            script.src = url;
+            
+            script.onload = function() {
+                addStatus(`Loaded: ${url}`);
+                if (callback) callback();
+            };
+            
+            script.onerror = function() {
+                addStatus(`Failed to load: ${url}`, true);
+            };
+            
+            document.body.appendChild(script);
+        }
+        
+        // Start loading scripts in sequence
+        addStatus('Starting to load scripts');
+        
+        // First load Supabase
+        loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2', function() {
+            // Check if Supabase loaded correctly
+            if (typeof supabase === 'undefined') {
+                addStatus('Supabase library not detected after loading', true);
+            } else {
+                addStatus('Supabase library loaded successfully');
+                
+                // Then load our client
+                loadScript('supabaseClient.js', function() {
+                    // Check if our client initialized
+                    if (typeof window.supabaseClient === 'undefined') {
+                        addStatus('Supabase client failed to initialize', true);
+                    } else {
+                        addStatus('Supabase client initialized successfully');
+                    }
+                    
+                    // Load remaining scripts
+                    loadScript('formConfig.js', function() {
+                        loadScript('formGenerator.js');
+                    });
+                });
+            }
+        });
+    </script>
+</body>
+</html>

@@ -58,59 +58,6 @@
             background-color: #333333;
         }
         
-        .form-page {
-            display: none;
-        }
-        
-        .form-page.active {
-            display: block;
-        }
-        
-        .nav-buttons {
-            display: flex;
-            justify-content: flex-end;
-            margin-top: 30px;
-        }
-        
-        /* Loading spinner */
-        .spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top-color: #fff;
-            animation: spin 1s ease-in-out infinite;
-            margin-right: 10px;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* Notification styling */
-        #form-notification {
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            max-width: 300px;
-            font-size: 14px;
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            padding: 15px 20px;
-            border-radius: 5px;
-            color: white;
-            font-weight: bold;
-            z-index: 1000;
-            transition: opacity 0.3s ease-in-out;
-        }
-        
-        /* Field error styling */
-        .field-error {
-            color: red;
-            font-size: 0.8rem;
-            margin-top: 4px;
-        }
-        
         /* Status panel */
         #status-panel {
             background-color: #f8f9fa;
@@ -132,6 +79,47 @@
         .status-item {
             margin-bottom: 5px;
         }
+        
+        /* Notification styling */
+        #form-notification {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 300px;
+            font-size: 14px;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 5px;
+            color: white;
+            font-weight: bold;
+            z-index: 1000;
+            transition: opacity 0.3s ease-in-out;
+            opacity: 0;
+        }
+        
+        /* Loading spinner */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .page {
+            display: none;
+        }
+        
+        .page.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -141,10 +129,41 @@
         <div id="status-items"></div>
     </div>
     
-    <!-- This div will contain your dynamically generated form -->
-    <div id="form-container"></div>
+    <!-- Form pages -->
+    <div id="page1" class="page active">
+        <h1>Simple Form</h1>
+        <form id="simpleForm">
+            <div class="form-group">
+                <label for="name">Your Name:</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="favoriteNumber">Your Favorite Number:</label>
+                <input type="number" id="favoriteNumber" name="favoriteNumber" required>
+            </div>
+            
+            <button type="submit" id="submitBtn">
+                Submit
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+            </button>
+        </form>
+    </div>
+    
+    <div id="thankYouPage" class="page">
+        <h1>Response Submitted</h1>
+        <p>Your response has been sent successfully!</p>
+        <button onclick="resetForm()">
+            Submit Another Response
+        </button>
+    </div>
+    
+    <!-- Notification element -->
+    <div id="form-notification"></div>
 
-    <!-- Load scripts with proper error handling -->
+    <!-- Load Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <script>
         // Helper function to add status messages
         function addStatus(message, isError = false) {
@@ -156,50 +175,143 @@
             console.log(isError ? 'ERROR: ' : 'INFO: ', message);
         }
         
-        // Function to load scripts in sequence
-        function loadScript(url, callback) {
-            const script = document.createElement('script');
-            script.type = 'text/javascript';
-            script.src = url;
+        // Initialize Supabase
+        let supabaseClient;
+        
+        try {
+            addStatus('Initializing Supabase...');
             
-            script.onload = function() {
-                addStatus(`Loaded: ${url}`);
-                if (callback) callback();
-            };
+            // Initialize Supabase client
+            const supabaseUrl = 'https://wccszfsbabbyrzltbavd.supabase.co';
+            const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjY3N6ZnNiYWJieXJ6bHRiYXZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ0NzI5MzAsImV4cCI6MjA2MDA0ODkzMH0.WZximkNPAOOw2MUZYlIebCed7w0sAkamO6ceVSQ9Iz8';
             
-            script.onerror = function() {
-                addStatus(`Failed to load: ${url}`, true);
-            };
-            
-            document.body.appendChild(script);
+            supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+            addStatus('Supabase client initialized successfully');
+        } catch (error) {
+            addStatus('Error initializing Supabase: ' + error.message, true);
         }
         
-        // Start loading scripts in sequence
-        addStatus('Starting to load scripts');
-        
-        // First load Supabase
-        loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2', function() {
-            // Check if Supabase loaded correctly
-            if (typeof supabase === 'undefined') {
-                addStatus('Supabase library not detected after loading', true);
+        // Show notification
+        function showNotification(message, type = 'info') {
+            const notification = document.getElementById('form-notification');
+            
+            if (type === 'success') {
+                notification.style.backgroundColor = '#4CAF50';
+            } else if (type === 'error') {
+                notification.style.backgroundColor = '#F44336';
             } else {
-                addStatus('Supabase library loaded successfully');
-                
-                // Then load our client
-                loadScript('supabaseClient.js', function() {
-                    // Check if our client initialized
-                    if (typeof window.supabaseClient === 'undefined') {
-                        addStatus('Supabase client failed to initialize', true);
-                    } else {
-                        addStatus('Supabase client initialized successfully');
-                    }
-                    
-                    // Load remaining scripts
-                    loadScript('formConfig.js', function() {
-                        loadScript('formGenerator.js');
-                    });
-                });
+                notification.style.backgroundColor = '#2196F3';
             }
+            
+            notification.textContent = message;
+            notification.style.opacity = '1';
+            
+            setTimeout(() => {
+                notification.style.opacity = '0';
+            }, 3000);
+        }
+        
+        // Show loading state
+        function showLoading(isLoading) {
+            const submitButton = document.getElementById('submitBtn');
+            
+            if (isLoading) {
+                submitButton.disabled = true;
+                submitButton.innerHTML = `
+                    <span class="spinner"></span>
+                    Submitting...
+                `;
+            } else {
+                submitButton.disabled = false;
+                submitButton.innerHTML = `
+                    Submit
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+                `;
+            }
+        }
+        
+        // Show page
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+            });
+            
+            document.getElementById(pageId).classList.add('active');
+        }
+        
+        // Submit form
+        async function submitForm(data) {
+            try {
+                showLoading(true);
+                
+                // Check if Supabase client is available
+                if (!supabaseClient) {
+                    showNotification('Database connection is not available', 'error');
+                    return false;
+                }
+                
+                // Format data for Supabase
+                const supabaseData = {
+                    name: data.name,
+                    favorite_number: parseInt(data.favoriteNumber) || 0
+                };
+                
+                console.log('Submitting data:', supabaseData);
+                
+                // Insert data into Supabase
+                const { data: responseData, error } = await supabaseClient
+                    .from('simple_form')
+                    .insert([supabaseData]);
+                
+                if (error) {
+                    console.error('Supabase insert error:', error);
+                    showNotification('Error saving data: ' + error.message, 'error');
+                    return false;
+                }
+                
+                console.log('Data saved successfully:', responseData);
+                showNotification('Response submitted successfully!', 'success');
+                return true;
+            } catch (error) {
+                console.error('Error submitting form:', error);
+                showNotification('Error: ' + (error.message || 'Unknown error'), 'error');
+                return false;
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // Reset form
+        function resetForm() {
+            document.getElementById('simpleForm').reset();
+            showPage('page1');
+        }
+        
+        // Setup form submission
+        document.addEventListener('DOMContentLoaded', function() {
+            addStatus('DOM loaded, setting up form');
+            
+            document.getElementById('simpleForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const formData = {
+                    name: document.getElementById('name').value,
+                    favoriteNumber: document.getElementById('favoriteNumber').value
+                };
+                
+                // Validate form
+                if (!formData.name || !formData.favoriteNumber) {
+                    showNotification('Please fill in all required fields', 'error');
+                    return;
+                }
+                
+                // Submit form
+                const success = await submitForm(formData);
+                
+                if (success) {
+                    showPage('thankYouPage');
+                }
+            });
         });
     </script>
 </body>
