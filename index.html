@@ -116,10 +116,22 @@
     <!-- This div will contain your dynamically generated form -->
     <div id="form-container"></div>
 
-    <!-- Load Supabase JS from CDN -->
+    <!-- Load Supabase JS from CDN first -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
-    <!-- Load your JavaScript files -->
+    <!-- Add a small delay to ensure Supabase is loaded before initialization -->
+    <script>
+        // Simple check to see if Supabase loaded correctly
+        setTimeout(() => {
+            if (typeof supabase === 'undefined') {
+                console.error('Supabase library not loaded properly!');
+            } else {
+                console.log('Supabase library loaded successfully');
+            }
+        }, 500);
+    </script>
+    
+    <!-- Load your JavaScript files in the correct order -->
     <script src="supabaseClient.js"></script>
     <script src="formConfig.js"></script>
     <script src="formGenerator.js"></script>

@@ -240,8 +240,8 @@ class FormGenerator {
           
           console.log('Submitting data to Supabase:', this.formData);
           
-          // Check if Supabase is available
-          if (typeof supabase === 'undefined') {
+          // Check if Supabase client is available
+          if (typeof window.supabaseClient === 'undefined') {
               console.error('Supabase client is not defined! Check supabaseClient.js');
               this.showNotification('Database connection error. Check the console.', 'error');
               return;
@@ -254,7 +254,7 @@ class FormGenerator {
           };
           
           // Insert data into Supabase
-          const { data, error } = await supabase
+          const { data, error } = await window.supabaseClient
               .from('simple_form')
               .insert([supabaseData]);
           
