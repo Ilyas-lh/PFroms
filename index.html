@@ -1,283 +1,90 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Simple Form</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Basic Form</title>
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 700px;
+            font-family: sans-serif;
+            max-width: 500px;
             margin: 0 auto;
             padding: 20px;
-            color: #37352F;
-            background-color: #fff;
-        }
-        
-        h1 {
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 1.5rem;
         }
         
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
         
         label {
             display: block;
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin-bottom: 8px;
+            margin-bottom: 5px;
+            font-weight: bold;
         }
         
-        input[type="text"], 
+        input[type="text"],
         input[type="number"] {
             width: 100%;
-            padding: 10px;
-            border-radius: 8px;
-            border: 1px solid rgba(61, 59, 53, 0.16);
-            box-shadow: rgba(0, 0, 0, 0.12) 0px 1px 1px 0px, 
-                        rgba(61, 59, 53, 0.16) 0px 0px 0px 1px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
             font-size: 16px;
         }
         
-        /* File upload area styling */
-        .file-upload-area {
-            width: 100%;
-            padding: 20px;
-            text-align: center;
-            border: 1px dashed #bbbab8;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            cursor: pointer;
-            position: relative;
-        }
-        
-        .file-upload-area:hover {
-            border-color: #999;
-        }
-        
-        /* Hide the actual file input */
-        .file-input {
-            width: 0.1px;
-            height: 0.1px;
-            opacity: 0;
-            overflow: hidden;
-            position: absolute;
-            z-index: -1;
-        }
-        
-        .upload-icon {
-            display: block;
-            margin: 0 auto 10px auto;
-            width: 40px;
-            height: 40px;
-        }
-        
-        .file-limit {
-            font-size: 12px;
-            color: #999;
-            margin-top: 10px;
-        }
-        
-        /* Submit button */
-        .submit-button {
-            background-color: #000000;
+        button {
+            background-color: #000;
             color: white;
-            padding: 12px 20px;
             border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
+            padding: 10px 15px;
+            border-radius: 4px;
             font-size: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            width: 100%;
+            cursor: pointer;
         }
         
-        .submit-button:hover {
-            background-color: #333;
-        }
-        
-        /* Success message */
         .success {
             background-color: #e6ffe6;
             border: 1px solid #99cc99;
-            padding: 15px;
+            padding: 10px;
             margin-top: 20px;
-            border-radius: 8px;
-            display: none;
-        }
-        
-        /* Thank you page */
-        #thank-you-page {
-            text-align: center;
+            border-radius: 4px;
             display: none;
         }
     </style>
 </head>
 <body>
-    <div id="form-page">
-        <h1>Simple Form</h1>
-        
-        <form id="simple-form" action="https://wccszfsbabbyrzltbavd.supabase.co/rest/v1/simple_form" method="post" enctype="multipart/form-data">
-            <!-- Hidden fields for Supabase authentication -->
-            <input type="hidden" name="apikey" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjY3N6ZnNiYWJieXJ6bHRiYXZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ0NzI5MzAsImV4cCI6MjA2MDA0ODkzMH0.WZximkNPAOOw2MUZYlIebCed7w0sAkamO6ceVSQ9Iz8">
-            
-            <div class="form-group">
-                <label for="name">Your Name:</label>
-                <input type="text" id="name" name="name" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="favorite_number">Your Favorite Number:</label>
-                <input type="number" id="favorite_number" name="favorite_number" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="file-upload">Image (Optional):</label>
-                <div class="file-upload-area" id="upload-area" onclick="document.getElementById('file-upload').click()">
-                    <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="17 8 12 3 7 8"></polyline>
-                        <line x1="12" y1="3" x2="12" y2="15"></line>
-                    </svg>
-                    <span>Click to choose a file or drag here</span>
-                    <div class="file-limit">Size limit: 5 MB</div>
-                    <input type="file" id="file-upload" name="file" class="file-input" accept="image/*">
-                </div>
-                
-                <div id="file-name" style="display: none;"></div>
-            </div>
-            
-            <button type="submit" class="submit-button">
-                Submit
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M5 12h14"></path>
-                    <path d="m12 5 7 7-7 7"></path>
-                </svg>
-            </button>
-        </form>
-        
-        <div id="success-message" class="success">
-            Form submitted successfully!
-        </div>
-    </div>
+    <h1>Simple Form</h1>
     
-    <div id="thank-you-page">
-        <h1>Thank You!</h1>
-        <p>Your response has been submitted successfully.</p>
-        <button onclick="resetForm()" class="submit-button">Submit Another Response</button>
+    <!-- Basic form with traditional multipart/form-data submission -->
+    <form id="simple-form" action="https://httpbin.org/post" method="post" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="name">Your Name:</label>
+            <input type="text" id="name" name="name" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="favorite_number">Your Favorite Number:</label>
+            <input type="number" id="favorite_number" name="favorite_number" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="image">Image Upload:</label>
+            <input type="file" id="image" name="image" accept="image/*">
+        </div>
+        
+        <button type="submit">Submit</button>
+    </form>
+    
+    <div id="success" class="success">
+        Form submitted successfully!
     </div>
     
     <script>
-        // Extremely minimal JavaScript
-        document.getElementById('file-upload').addEventListener('change', function() {
-            if(this.files.length > 0) {
-                var fileName = this.files[0].name;
-                document.getElementById('file-name').textContent = 'Selected: ' + fileName;
-                document.getElementById('file-name').style.display = 'block';
-            } else {
-                document.getElementById('file-name').style.display = 'none';
-            }
-        });
-        
-        document.getElementById('simple-form').addEventListener('submit', function(e) {
+        // Minimal JavaScript just to prevent form from navigating away
+        document.getElementById('simple-form').onsubmit = function(e) {
             e.preventDefault();
-            
-            // Create a FormData object to collect form data including files
-            var formData = new FormData(this);
-            
-            // Add content type for Supabase to treat the response as JSON
-            var xhr = new XMLHttpRequest();
-            xhr.open('POST', 'https://wccszfsbabbyrzltbavd.supabase.co/rest/v1/simple_form', true);
-            
-            // Set required headers for Supabase
-            xhr.setRequestHeader('apikey', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjY3N6ZnNiYWJieXJ6bHRiYXZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ0NzI5MzAsImV4cCI6MjA2MDA0ODkzMH0.WZximkNPAOOw2MUZYlIebCed7w0sAkamO6ceVSQ9Iz8');
-            xhr.setRequestHeader('Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjY3N6ZnNiYWJieXJ6bHRiYXZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ0NzI5MzAsImV4cCI6MjA2MDA0ODkzMH0.WZximkNPAOOw2MUZYlIebCed7w0sAkamO6ceVSQ9Iz8');
-            xhr.setRequestHeader('Content-Type', 'application/json');
-            
-            // Extract simple form data
-            var name = document.getElementById('name').value;
-            var favoriteNumber = document.getElementById('favorite_number').value;
-            
-            // Create a simple JSON object to send
-            var data = {
-                name: name,
-                favorite_number: parseInt(favoriteNumber)
-            };
-            
-            xhr.onreadystatechange = function() {
-                if (xhr.readyState === 4) {
-                    if (xhr.status === 201 || xhr.status === 200) {
-                        // Handle file upload separately if a file was chosen
-                        var fileInput = document.getElementById('file-upload');
-                        if (fileInput.files.length > 0) {
-                            uploadFile(fileInput.files[0], function(success) {
-                                if (success) {
-                                    showThankYouPage();
-                                } else {
-                                    // Show success message even if file upload failed
-                                    showThankYouPage();
-                                }
-                            });
-                        } else {
-                            // No file to upload, just show success
-                            showThankYouPage();
-                        }
-                    } else {
-                        // Show error
-                        alert('Error submitting form. Please try again.');
-                    }
-                }
-            };
-            
-            // Send the request with stringified data
-            xhr.send(JSON.stringify(data));
-        });
-        
-        // Simple file upload function
-        function uploadFile(file, callback) {
-            if (!file) {
-                callback(true); // No file to upload is not an error
-                return;
-            }
-            
-            // Create a simple filename without Date methods
-            var randomId = Math.floor(Math.random() * 1000000);
-            var filename = 'image_' + randomId + '.' + file.name.split('.').pop();
-            
-            var xhr = new XMLHttpRequest();
-            xhr.open('POST', 'https://wccszfsbabbyrzltbavd.supabase.co/storage/v1/object/form-images/' + filename, true);
-            
-            xhr.setRequestHeader('apikey', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjY3N6ZnNiYWJieXJ6bHRiYXZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ0NzI5MzAsImV4cCI6MjA2MDA0ODkzMH0.WZximkNPAOOw2MUZYlIebCed7w0sAkamO6ceVSQ9Iz8');
-            xhr.setRequestHeader('Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjY3N6ZnNiYWJieXJ6bHRiYXZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ0NzI5MzAsImV4cCI6MjA2MDA0ODkzMH0.WZximkNPAOOw2MUZYlIebCed7w0sAkamO6ceVSQ9Iz8');
-            
-            xhr.onreadystatechange = function() {
-                if (xhr.readyState === 4) {
-                    callback(xhr.status === 200 || xhr.status === 201);
-                }
-            };
-            
-            xhr.send(file);
-        }
-        
-        // Show thank you page
-        function showThankYouPage() {
-            document.getElementById('form-page').style.display = 'none';
-            document.getElementById('thank-you-page').style.display = 'block';
-        }
-        
-        // Reset form
-        function resetForm() {
-            document.getElementById('simple-form').reset();
-            document.getElementById('file-name').style.display = 'none';
-            document.getElementById('form-page').style.display = 'block';
-            document.getElementById('thank-you-page').style.display = 'none';
-        }
+            document.getElementById('success').style.display = 'block';
+            return false;
+        };
     </script>
 </body>
 </html>
