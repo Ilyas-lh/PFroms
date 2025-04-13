@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-    <title>Adaptive Form</title>
+    <title>Simple Form</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -146,18 +146,6 @@
             color: #cc0000;
         }
         
-        /* Environment indicator */
-        .env-indicator {
-            position: fixed;
-            top: 5px;
-            right: 5px;
-            font-size: 10px;
-            padding: 3px 6px;
-            background: #eee;
-            border-radius: 3px;
-            color: #666;
-        }
-        
         /* Thank you page */
         #thank-you {
             text-align: center;
@@ -171,8 +159,6 @@
     </style>
 </head>
 <body>
-    <div id="environment" class="env-indicator">Detecting...</div>
-    
     <div id="form-container">
         <h1>Simple Form</h1>
         
@@ -221,42 +207,11 @@
     </div>
     
     <script>
-        // ----- Environment Detection -----
-        (function detectEnvironment() {
-            var isWebView = false;
-            
-            // Check for common WebView indicators
-            if (window.navigator.userAgent.indexOf('Android') !== -1) {
-                // Check for typical Android WebView strings
-                if (window.navigator.userAgent.indexOf('wv') !== -1 || 
-                    window.navigator.userAgent.indexOf('Version/') !== -1 && 
-                    window.navigator.userAgent.indexOf('Chrome/') !== -1) {
-                    isWebView = true;
-                }
-            } else if (window.navigator.userAgent.indexOf('iPhone') !== -1 || 
-                       window.navigator.userAgent.indexOf('iPad') !== -1) {
-                // Check for iOS WebView indicators
-                if (!window.navigator.standalone &&
-                    !window.safari) {
-                    isWebView = true;
-                }
-            }
-            
-            // Mark the environment
-            var env = document.getElementById('environment');
-            if (isWebView) {
-                env.textContent = 'App WebView';
-                document.body.classList.add('webview-environment');
-            } else {
-                env.textContent = 'Web Browser';
-                document.body.classList.add('browser-environment');
-            }
-        })();
-        
         // ----- Global Variables -----
         var currentFile = null;
         var supabaseUrl = 'https://wccszfsbabbyrzltbavd.supabase.co';
         var supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjY3N6ZnNiYWJieXJ6bHRiYXZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ0NzI5MzAsImV4cCI6MjA2MDA0ODkzMH0.WZximkNPAOOw2MUZYlIebCed7w0sAkamO6ceVSQ9Iz8';
+        var tableName = 'new_form'; // Updated to use your correct table name
         
         // ----- Element References -----
         var uploadContainer = document.getElementById('upload-container');
@@ -359,11 +314,10 @@
         
         // Generate a random ID without using Date
         function generateId() {
-            return Math.random().toString(36).substring(2, 15) + 
-                   Math.random().toString(36).substring(2, 15);
+            return Math.random().toString(36).substring(2, 15);
         }
         
-        // Submit form - using a simpler approach
+        // Submit form
         function submitForm() {
             var name = document.getElementById('name').value;
             var favoriteNumber = document.getElementById('favorite-number').value;
@@ -414,13 +368,17 @@
         function submitDataToSupabase(data) {
             return new Promise(function(resolve) {
                 var xhr = new XMLHttpRequest();
-                xhr.open('POST', supabaseUrl + '/rest/v1/simple_form', true);
+                xhr.open('POST', supabaseUrl + '/rest/v1/' + tableName, true);
                 xhr.setRequestHeader('Content-Type', 'application/json');
                 xhr.setRequestHeader('apikey', supabaseKey);
                 xhr.setRequestHeader('Authorization', 'Bearer ' + supabaseKey);
                 
                 xhr.onreadystatechange = function() {
                     if (xhr.readyState === 4) {
+                        // Log response for debugging
+                        console.log('Form submission status:', xhr.status);
+                        console.log('Response:', xhr.responseText);
+                        
                         resolve(xhr.status === 201 || xhr.status === 200);
                     }
                 };
@@ -443,6 +401,10 @@
                 
                 xhr.onreadystatechange = function() {
                     if (xhr.readyState === 4) {
+                        // Log response for debugging
+                        console.log('File upload status:', xhr.status);
+                        console.log('Response:', xhr.responseText);
+                        
                         resolve(xhr.status === 201 || xhr.status === 200);
                     }
                 };
