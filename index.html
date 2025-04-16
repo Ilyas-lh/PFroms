@@ -38,81 +38,6 @@
             box-sizing: border-box;
         }
         
-        /* Upload area styles */
-        .upload-container {
-            border: 2px dashed #ccc;
-            border-radius: 8px;
-            padding: 20px;
-            text-align: center;
-            cursor: pointer;
-            position: relative;
-            transition: border-color 0.3s;
-        }
-        
-        .upload-container:hover {
-            border-color: #999;
-        }
-        
-        .upload-icon {
-            display: block;
-            margin: 0 auto 10px;
-            width: 48px;
-            height: 48px;
-            color: #555;
-        }
-        
-        /* Hide actual file input */
-        .file-input {
-            position: absolute;
-            width: 0.1px;
-            height: 0.1px;
-            opacity: 0;
-            overflow: hidden;
-            z-index: -1;
-        }
-        
-        .upload-label {
-            font-size: 16px;
-            color: #333;
-            display: block;
-        }
-        
-        .upload-hint {
-            font-size: 12px;
-            color: #777;
-            margin-top: 10px;
-        }
-        
-        /* Preview area */
-        .preview-container {
-            margin-top: 15px;
-            display: none;
-        }
-        
-        .preview-container img {
-            max-width: 100%;
-            max-height: 200px;
-            border-radius: 4px;
-            border: 1px solid #ddd;
-        }
-        
-        .file-info {
-            margin-top: 5px;
-            font-size: 12px;
-            color: #666;
-        }
-        
-        .remove-file {
-            background-color: #f44336;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 4px;
-            margin-top: 5px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-        
         /* Submit button */
         .submit-btn {
             background-color: #000;
@@ -247,27 +172,6 @@
                 <input type="number" id="favorite-number" name="favorite_number" required>
             </div>
             
-            <div class="form-group">
-                <label>Image Upload (Optional):</label>
-                
-                <!-- Adaptive file upload area -->
-                <div id="upload-container" class="upload-container">
-                    <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                        <path fill="currentColor" d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
-                    </svg>
-                    <input type="file" id="file-input" class="file-input" accept="image/*">
-                    <span class="upload-label">Click to select an image</span>
-                    <p class="upload-hint">Maximum size: 5MB</p>
-                </div>
-                
-                <!-- Image preview -->
-                <div id="preview-container" class="preview-container">
-                    <img id="preview-image" src="" alt="Preview">
-                    <div id="file-info" class="file-info"></div>
-                    <button type="button" id="remove-file" class="remove-file">Remove</button>
-                </div>
-            </div>
-            
             <div id="status" class="status"></div>
             
             <button type="submit" id="submit-btn" class="submit-btn">Submit</button>
@@ -282,7 +186,6 @@
     
     <script>
         // ----- Global Variables -----
-        var currentFile = null;
         var submissionId = null; // Track the current submission ID
         var supabaseUrl = 'https://wccszfsbabbyrzltbavd.supabase.co';
         var supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjY3N6ZnNiYWJieXJ6bHRiYXZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ0NzI5MzAsImV4cCI6MjA2MDA0ODkzMH0.WZximkNPAOOw2MUZYlIebCed7w0sAkamO6ceVSQ9Iz8';
@@ -294,12 +197,6 @@
         var isDev = false; // Change to true to show debug panel by default
         
         // ----- Element References -----
-        var uploadContainer = document.getElementById('upload-container');
-        var fileInput = document.getElementById('file-input');
-        var previewContainer = document.getElementById('preview-container');
-        var previewImage = document.getElementById('preview-image');
-        var fileInfo = document.getElementById('file-info');
-        var removeFileBtn = document.getElementById('remove-file');
         var dataForm = document.getElementById('data-form');
         var submitBtn = document.getElementById('submit-btn');
         var statusEl = document.getElementById('status');
@@ -649,37 +546,11 @@
             }
         }
         
-        // ----- Event Listeners -----
-        
-        // Trigger file input when container is clicked
-        uploadContainer.addEventListener('click', function() {
-            debugLog('Upload container clicked', 'INFO');
-            fileInput.click();
-        });
-        
-        // Handle file selection
-        fileInput.addEventListener('change', function(e) {
-            debugLog('File input change event', 'INFO');
-            handleFileSelection(e);
-        });
-        
-        // Remove file button
-        removeFileBtn.addEventListener('click', function() {
-            debugLog('Remove file button clicked', 'INFO');
-            resetFileUpload();
-        });
-        
         // Form submission
         dataForm.addEventListener('submit', function(e) {
             e.preventDefault();
             debugLog('Form submitted', 'INFO');
             submitForm();
-        });
-        
-        // New response button
-        newResponseBtn.addEventListener('click', function() {
-            debugLog('New response button clicked', 'INFO');
-            resetForm();
         });
         
         // ----- Helper Functions -----
@@ -733,54 +604,6 @@
             return filename.split('.').pop().toLowerCase();
         }
         
-        // Handle file selection
-        function handleFileSelection(e) {
-            var file = e.target.files[0];
-            if (!file) {
-                debugLog('No file selected', 'WARNING');
-                return;
-            }
-            
-            debugLog('File selected: ' + file.name + ' (' + file.size + ' bytes)', 'INFO');
-            
-            // Check file size (max 5MB)
-            if (file.size > 5 * 1024 * 1024) {
-                debugLog('File too large: ' + formatFileSize(file.size), 'ERROR');
-                showStatus('File is too large. Maximum size is 5MB.', 'error');
-                resetFileUpload();
-                return;
-            }
-            
-            // Store the file for later upload
-            currentFile = file;
-            
-            // Update UI
-            fileInfo.textContent = file.name + ' (' + formatFileSize(file.size) + ')';
-            
-            // Show preview
-            var reader = new FileReader();
-            reader.onload = function(e) {
-                debugLog('File preview loaded', 'INFO');
-                previewImage.src = e.target.result;
-                uploadContainer.style.display = 'none';
-                previewContainer.style.display = 'block';
-            };
-            reader.onerror = function() {
-                debugLog('Error reading file', 'ERROR');
-                showStatus('Error reading file. Please try again.', 'error');
-            };
-            reader.readAsDataURL(file);
-        }
-        
-        // Reset file upload
-        function resetFileUpload() {
-            debugLog('Resetting file upload', 'INFO');
-            fileInput.value = '';
-            currentFile = null;
-            previewContainer.style.display = 'none';
-            uploadContainer.style.display = 'block';
-        }
-        
         // ----- Form Submission -----
         
         // Submit form
@@ -815,9 +638,7 @@
                 var formData = {
                     name: name,
                     favorite_number: parseInt(favoriteNumber) || 0,
-                    has_image: !!currentFile,
-                    image_url: null // Will be updated if file upload succeeds
-                };
+                    };
                 
                 debugLog('Submitting form data: ' + JSON.stringify(formData), 'INFO');
                 
@@ -832,39 +653,6 @@
                 
                 // Store the record ID for later use
                 submissionId = submitResult.id;
-                
-                // If there's a file, upload it and update the record
-                if (currentFile) {
-                    debugLog('Checking storage bucket for file upload...', 'INFO');
-                    const bucketExists = await checkStorageBucket();
-                    
-                    if (!bucketExists) {
-                        debugLog('Storage bucket not available', 'WARNING');
-                        showStatus('Image upload is not available. Your information was saved without the image.', 'warning');
-                    } else {
-                        debugLog('Uploading file...', 'INFO');
-                        const uploadResult = await uploadFileToSupabase(currentFile);
-                        
-                        if (!uploadResult.success) {
-                            debugLog('File upload failed: ' + uploadResult.error, 'ERROR');
-                            showStatus('Your information was saved, but the image upload failed.', 'warning');
-                        } else {
-                            debugLog('File uploaded successfully with URL: ' + uploadResult.url, 'SUCCESS');
-                            
-                            // Update the record with the image URL
-                            debugLog('Updating record with image URL...', 'INFO');
-                            const updateResult = await updateImageUrl(submissionId, uploadResult.url);
-                            
-                            if (!updateResult.success) {
-                                debugLog('Failed to update image URL: ' + updateResult.error, 'ERROR');
-                                showStatus('Your information and image were saved, but we couldn\'t link them together.', 'warning');
-                            } else {
-                                debugLog('Image URL updated successfully', 'SUCCESS');
-                                showStatus('Your information and image were saved successfully!', 'success');
-                            }
-                        }
-                    }
-                }
                 
                 // Show thank you page
                 showThankYouPage();
@@ -939,119 +727,6 @@
             });
         }
         
-        // Upload file to Supabase Storage
-        async function uploadFileToSupabase(file) {
-            return new Promise(function(resolve) {
-                var fileId = generateId();
-                var safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_'); // Remove unsafe characters
-                var extension = getFileExtension(safeName);
-                var filename = 'image_' + fileId + '.' + extension;
-                
-                debugLog('Uploading file: ' + filename, 'INFO');
-                
-                var xhr = new XMLHttpRequest();
-                xhr.open('POST', supabaseUrl + '/storage/v1/object/form-images/' + filename, true);
-                xhr.setRequestHeader('apikey', supabaseKey);
-                xhr.setRequestHeader('Authorization', 'Bearer ' + supabaseKey);
-                
-                xhr.onreadystatechange = function() {
-                    if (xhr.readyState === 4) {
-                        debugLog('File upload status: ' + xhr.status, 'INFO');
-                        
-                        if (xhr.status === 201 || xhr.status === 200) {
-                            debugLog('File upload successful', 'SUCCESS');
-                            
-                            // Get project ref from URL for constructing public URL
-                            var projectRef = supabaseUrl.split('//')[1].split('.')[0];
-                            var publicUrl = 'https://' + projectRef + '.supabase.co/storage/v1/object/public/form-images/' + filename;
-                            
-                            debugLog('Public URL: ' + publicUrl, 'INFO');
-                            
-                            resolve({
-                                success: true,
-                                url: publicUrl,
-                                filename: filename
-                            });
-                        } else {
-                            debugLog('File upload failed: ' + xhr.responseText, 'ERROR');
-                            resolve({
-                                success: false,
-                                error: xhr.responseText || 'Unknown error'
-                            });
-                        }
-                    }
-                };
-                
-                xhr.onerror = function() {
-                    debugLog('Network error during file upload', 'ERROR');
-                    resolve({
-                        success: false,
-                        error: 'Network error'
-                    });
-                };
-                
-                // Use FormData for file upload
-                var formData = new FormData();
-                formData.append('file', file, filename);
-                
-                xhr.send(formData);
-            });
-        }
-        
-        // Update image URL in the database
-        async function updateImageUrl(recordId, imageUrl) {
-            return new Promise(function(resolve) {
-                debugLog('Updating image URL for record ID: ' + recordId, 'INFO');
-                
-                if (!recordId) {
-                    debugLog('No record ID provided, cannot update image URL', 'ERROR');
-                    resolve({
-                        success: false,
-                        error: 'No record ID'
-                    });
-                    return;
-                }
-                
-                var xhr = new XMLHttpRequest();
-                xhr.open('PATCH', supabaseUrl + '/rest/v1/' + tableName + '?id=eq.' + encodeURIComponent(recordId), true);
-                xhr.setRequestHeader('Content-Type', 'application/json');
-                xhr.setRequestHeader('apikey', supabaseKey);
-                xhr.setRequestHeader('Authorization', 'Bearer ' + supabaseKey);
-                xhr.setRequestHeader('Prefer', 'return=minimal');
-                
-                xhr.onreadystatechange = function() {
-                    if (xhr.readyState === 4) {
-                        debugLog('Image URL update status: ' + xhr.status, 'INFO');
-                        
-                        if (xhr.status === 204 || xhr.status === 200) {
-                            debugLog('Image URL updated successfully', 'SUCCESS');
-                            resolve({
-                                success: true
-                            });
-                        } else {
-                            debugLog('Image URL update failed: ' + xhr.responseText, 'ERROR');
-                            resolve({
-                                success: false,
-                                error: xhr.responseText || 'Unknown error'
-                            });
-                        }
-                    }
-                };
-                
-                xhr.onerror = function() {
-                    debugLog('Network error during image URL update', 'ERROR');
-                    resolve({
-                        success: false,
-                        error: 'Network error'
-                    });
-                };
-                
-                xhr.send(JSON.stringify({
-                    image_url: imageUrl
-                }));
-            });
-        }
-        
         // Show thank you page
         function showThankYouPage() {
             debugLog('Showing thank you page', 'INFO');
@@ -1064,7 +739,6 @@
         function resetForm() {
             debugLog('Resetting form', 'INFO');
             dataForm.reset();
-            resetFileUpload();
             formContainer.style.display = 'block';
             thankYouEl.style.display = 'none';
             statusEl.style.display = 'none';
