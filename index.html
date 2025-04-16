@@ -3,6 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- Android WebView optimization -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#000000">
+    <link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#000000">
+<link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then((registration) => {
+          console.log('ServiceWorker registered: ', registration.scope);
+        })
+        .catch((error) => {
+          console.log('ServiceWorker registration failed: ', error);
+        });
+    });
+  }
+</script>
+    
     <title>Simple Form</title>
     <style>
         body {
@@ -11,6 +32,9 @@
             margin: 0 auto;
             padding: 20px;
             color: #333;
+            /* Prevent text selection for better mobile experience */
+            -webkit-user-select: none;
+            user-select: none;
         }
         
         h1 {
@@ -36,6 +60,10 @@
             border-radius: 4px;
             font-size: 16px;
             box-sizing: border-box;
+            /* Improve input on Android */
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
         }
         
         /* Submit button */
@@ -51,6 +79,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            /* Add touch feedback */
+            -webkit-tap-highlight-color: rgba(0,0,0,0);
         }
         
         .submit-btn:hover {
@@ -147,6 +177,47 @@
         .dev-mode #debug-panel {
             display: block;
         }
+        
+        /* Android-specific styles */
+        /* Material design ripple effect for buttons */
+        @keyframes ripple {
+            0% {
+                transform: scale(0);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(2);
+                opacity: 0;
+            }
+        }
+        
+        .ripple {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .ripple:after {
+            content: "";
+            display: block;
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            background-image: radial-gradient(circle, #fff 10%, transparent 10.01%);
+            background-repeat: no-repeat;
+            background-position: 50%;
+            transform: scale(10, 10);
+            opacity: 0;
+            transition: transform .5s, opacity 1s;
+        }
+        
+        .ripple:active:after {
+            transform: scale(0, 0);
+            opacity: .3;
+            transition: 0s;
+        }
     </style>
 </head>
 <body>
@@ -158,28 +229,131 @@
         <form id="data-form">
             <div class="form-group">
                 <label for="name">Your Name:</label>
-                <input type="text" id="name" name="name" required>
+                <input type="text" id="name" name="name" required autocomplete="off">
             </div>
             
             <div class="form-group">
                 <label for="favorite-number">Your Favorite Number:</label>
-                <input type="number" id="favorite-number" name="favorite_number" required>
+                <input type="number" id="favorite-number" name="favorite_number" required pattern="[0-9]*" inputmode="numeric">
             </div>
             
             <div id="status" class="status"></div>
             
-            <button type="submit" id="submit-btn" class="submit-btn">Submit</button>
+            <button type="submit" id="submit-btn" class="submit-btn ripple">Submit</button>
         </form>
     </div>
     
     <div id="thank-you">
         <h1>Thank You!</h1>
         <p>Your response has been submitted successfully.</p>
-        <button id="new-response" class="submit-btn">Submit Another Response</button>
+        <button id="new-response" class="submit-btn ripple">Submit Another Response</button>
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
+        // ----- Android Bridge -----
+        var AndroidApp = null; // Will hold Android interface
+        var isAndroidWebView = false;
+        
+        // Detect if running in Android WebView
+        function detectAndroidWebView() {
+            var ua = navigator.userAgent.toLowerCase();
+            if (/android/i.test(ua)) {
+                if (/wv/i.test(ua) || 
+                   (/version/i.test(ua) && /chrome/i.test(ua)) ||
+                   /android.*applewebkit\/((?!chrome).)*$/i.test(ua)) {
+                    isAndroidWebView = true;
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        // Initialize Android Bridge
+        function initAndroidBridge() {
+            if (!detectAndroidWebView()) {
+                debugLog('Not running in Android WebView', 'INFO');
+                return false;
+            }
+            
+            debugLog('Running in Android WebView', 'INFO');
+            
+            // Look for Android interface
+            try {
+                if (window.Android) {
+                    AndroidApp = window.Android;
+                    debugLog('Android interface found (window.Android)', 'SUCCESS');
+                } else if (window.AndroidApp) {
+                    AndroidApp = window.AndroidApp;
+                    debugLog('Android interface found (window.AndroidApp)', 'SUCCESS');
+                } else if (window.JSBridge) {
+                    AndroidApp = window.JSBridge;
+                    debugLog('Android interface found (window.JSBridge)', 'SUCCESS');
+                } else {
+                    debugLog('Android interface not found', 'WARNING');
+                }
+                
+                // Register with Android
+                if (AndroidApp && typeof AndroidApp.onWebViewInitialized === 'function') {
+                    AndroidApp.onWebViewInitialized();
+                    debugLog('Notified Android app of initialization', 'SUCCESS');
+                }
+                
+                return true;
+            } catch (error) {
+                debugLog('Error initializing Android bridge: ' + error.message, 'ERROR');
+                return false;
+            }
+        }
+        
+        // Send message to Android
+        function sendToAndroid(action, data) {
+            if (!AndroidApp) return false;
+            
+            try {
+                if (typeof AndroidApp.onWebEvent === 'function') {
+                    var message = JSON.stringify({
+                        action: action,
+                        data: data
+                    });
+                    AndroidApp.onWebEvent(message);
+                    return true;
+                } else if (typeof AndroidApp.postMessage === 'function') {
+                    var message = JSON.stringify({
+                        action: action,
+                        data: data
+                    });
+                    AndroidApp.postMessage(message);
+                    return true;
+                } else {
+                    debugLog('No suitable method found to communicate with Android', 'WARNING');
+                }
+            } catch (error) {
+                debugLog('Error sending to Android: ' + error.message, 'ERROR');
+            }
+            
+            return false;
+        }
+        
+        // Vibrate device (for feedback)
+        function vibrateDevice(duration) {
+            if (AndroidApp && typeof AndroidApp.vibrate === 'function') {
+                AndroidApp.vibrate(duration || 50);
+            } else if ('vibrate' in navigator) {
+                navigator.vibrate(duration || 50);
+            }
+        }
+        
+        // Handle Android back button
+        function handleBackButton() {
+            if (document.getElementById('thank-you').style.display === 'block') {
+                resetForm();
+                return true; // Handled
+            }
+            
+            return false; // Not handled, let Android handle it
+        }
+        
         // ----- Global Variables -----
         var tableName = 'simple_form'; // Use a consistent table name
         var supabaseUrl = 'https://wccszfsbabbyrzltbavd.supabase.co';
@@ -250,6 +424,11 @@
             entry.textContent = message;
             debugPanel.insertBefore(entry, debugPanel.firstChild);
             
+            // Send debug info to Android
+            if (isAndroidWebView && AndroidApp && typeof AndroidApp.onDebugLog === 'function') {
+                AndroidApp.onDebugLog(type || 'INFO', message);
+            }
+            
             // Limit entries
             if (debugPanel.children.length > 100) {
                 debugPanel.removeChild(debugPanel.lastChild);
@@ -314,6 +493,14 @@
             statusEl.className = 'status ' + type;
             statusEl.style.display = 'block';
             
+            // Send status to Android
+            if (isAndroidWebView) {
+                sendToAndroid('status', {
+                    message: message,
+                    type: type
+                });
+            }
+            
             // Auto-hide after 5 seconds
             setTimeout(function() {
                 statusEl.style.display = 'none';
@@ -332,9 +519,19 @@
                     submitBtn.prepend(spinner);
                     submitBtn.textContent = ' Submitting...';
                 }
+                
+                // Notify Android of loading state
+                if (isAndroidWebView) {
+                    sendToAndroid('loading', { isLoading: true });
+                }
             } else {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = 'Submit';
+                
+                // Notify Android of loading state
+                if (isAndroidWebView) {
+                    sendToAndroid('loading', { isLoading: false });
+                }
             }
         }
         
@@ -345,7 +542,13 @@
             
             if (!name || !favoriteNumber) {
                 showStatus('Please fill in all required fields.', 'error');
+                vibrateDevice(100); // Vibrate to indicate error
                 return;
+            }
+            
+            // Close soft keyboard
+            if (document.activeElement) {
+                document.activeElement.blur();
             }
             
             // Show loading state
@@ -370,6 +573,11 @@
                 
                 debugLog('Submitting data: ' + JSON.stringify(formData), 'INFO');
                 
+                // Notify Android of submission
+                if (isAndroidWebView) {
+                    sendToAndroid('formSubmit', formData);
+                }
+                
                 // Insert into Supabase
                 const { data, error } = await supabaseClient
                     .from(tableName)
@@ -381,6 +589,19 @@
                 
                 debugLog('Data submitted successfully', 'SUCCESS');
                 
+                // Notify Android of success
+                if (isAndroidWebView) {
+                    sendToAndroid('formSuccess', formData);
+                    
+                    // Optional: Let Android handle success UI if desired
+                    if (AndroidApp && typeof AndroidApp.onFormSubmitSuccess === 'function') {
+                        AndroidApp.onFormSubmitSuccess(JSON.stringify(formData));
+                    }
+                }
+                
+                // Provide haptic feedback for success
+                vibrateDevice(50);
+                
                 // Show thank you page
                 formContainer.style.display = 'none';
                 thankYouEl.style.display = 'block';
@@ -388,6 +609,16 @@
             } catch (error) {
                 debugLog('Error: ' + error.message, 'ERROR');
                 showStatus('Error: ' + error.message, 'error');
+                
+                // Notify Android of error
+                if (isAndroidWebView) {
+                    sendToAndroid('formError', { 
+                        message: error.message 
+                    });
+                }
+                
+                // Provide haptic feedback for error
+                vibrateDevice(100);
             } finally {
                 setLoading(false);
             }
@@ -399,6 +630,11 @@
             formContainer.style.display = 'block';
             thankYouEl.style.display = 'none';
             statusEl.style.display = 'none';
+            
+            // Notify Android
+            if (isAndroidWebView) {
+                sendToAndroid('formReset', {});
+            }
         }
         
         // ----- Event Listeners -----
@@ -414,6 +650,11 @@
             resetForm();
         });
         
+        // Handle Android back button
+        window.onBackPressed = function() {
+            return handleBackButton();
+        };
+        
         // ----- Initialization -----
         
         // Initialize the app
@@ -423,14 +664,57 @@
             // Initialize debug panel
             initDebug();
             
+            // Initialize Android Bridge
+            initAndroidBridge();
+            
             // Initialize Supabase
             initSupabase();
             
+            // Add ripple effect to buttons
+            document.querySelectorAll('.ripple').forEach(function(button) {
+                button.addEventListener('click', function(e) {
+                    var rect = button.getBoundingClientRect();
+                    var x = e.clientX - rect.left;
+                    var y = e.clientY - rect.top;
+                    
+                    var ripple = document.createElement('span');
+                    ripple.classList.add('ripple-effect');
+                    ripple.style.left = x + 'px';
+                    ripple.style.top = y + 'px';
+                    
+                    button.appendChild(ripple);
+                    
+                    setTimeout(function() {
+                        ripple.remove();
+                    }, 500);
+                });
+            });
+            
             debugLog('Application initialized', 'SUCCESS');
+            
+            // Notify Android that the page is fully loaded
+            if (isAndroidWebView && AndroidApp && typeof AndroidApp.onPageLoaded === 'function') {
+                setTimeout(function() {
+                    AndroidApp.onPageLoaded();
+                }, 500);
+            }
         }
         
         // Run initialization
         document.addEventListener('DOMContentLoaded', init);
+        
+        // Global functions that Android can call
+        window.showDebugPanel = function() {
+            debugPanel.style.display = 'block';
+        };
+        
+        window.hideDebugPanel = function() {
+            debugPanel.style.display = 'none';
+        };
+        
+        window.resetFormFromAndroid = function() {
+            resetForm();
+        };
     </script>
 </body>
 </html>
