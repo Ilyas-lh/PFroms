@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Simple Form with Image Upload</title>
+    <title>Simple Form</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
@@ -48,7 +48,9 @@
             font-size: 16px;
             cursor: pointer;
             width: 100%;
-            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         .submit-btn:hover {
@@ -70,7 +72,6 @@
             border-top-color: white;
             animation: spin 1s linear infinite;
             margin-right: 8px;
-            vertical-align: middle;
         }
         
         @keyframes spin {
@@ -95,12 +96,6 @@
             background-color: #ffe6e6;
             border: 1px solid #cc9999;
             color: #cc0000;
-        }
-        
-        .warning {
-            background-color: #fffae6;
-            border: 1px solid #e6cc99;
-            color: #997300;
         }
         
         /* Thank you page */
@@ -149,7 +144,6 @@
             color: #8080ff;
         }
         
-        /* Show debug panel in development */
         .dev-mode #debug-panel {
             display: block;
         }
@@ -184,18 +178,15 @@
         <button id="new-response" class="submit-btn">Submit Another Response</button>
     </div>
     
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         // ----- Global Variables -----
-        var submissionId = null; // Track the current submission ID
+        var tableName = 'simple_form'; // Use a consistent table name
         var supabaseUrl = 'https://wccszfsbabbyrzltbavd.supabase.co';
         var supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjY3N6ZnNiYWJieXJ6bHRiYXZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ0NzI5MzAsImV4cCI6MjA2MDA0ODkzMH0.WZximkNPAOOw2MUZYlIebCed7w0sAkamO6ceVSQ9Iz8';
-        var tableName = 'new_form'; // Default table name
-        var isWebView = false;
-        var debugMode = true; // Set to true to enable debug panel
+        var debugMode = true;
+        var isDev = false; // Set to true during development to show debug panel
 
-        // Dev mode toggle (set to true during development)
-        var isDev = false; // Change to true to show debug panel by default
-        
         // ----- Element References -----
         var dataForm = document.getElementById('data-form');
         var submitBtn = document.getElementById('submit-btn');
@@ -204,6 +195,9 @@
         var thankYouEl = document.getElementById('thank-you');
         var newResponseBtn = document.getElementById('new-response');
         var debugPanel = document.getElementById('debug-panel');
+        
+        // Supabase client
+        var supabaseClient = null;
         
         // ----- Debug Functions -----
         
@@ -214,7 +208,7 @@
             }
             
             if (debugMode) {
-                // Add double-tap to toggle debug panel visibility
+                // Add double-tap to toggle debug panel 
                 var lastTap = 0;
                 document.addEventListener('touchend', function(event) {
                     var currentTime = new Date().getTime();
@@ -262,298 +256,56 @@
             }
         }
         
-        // ----- Setup and Initialization -----
+        // ----- Supabase Functions -----
         
-        // Detect WebView environment
-        function detectEnvironment() {
-            var ua = navigator.userAgent.toLowerCase();
-            debugLog('User Agent: ' + ua, 'INFO');
-            
-            // Check for Android WebView
-            if (/android/i.test(ua)) {
-                if (/wv/i.test(ua) || (/version/i.test(ua) && /chrome/i.test(ua))) {
-                    isWebView = true;
-                    debugLog('Detected Android WebView', 'INFO');
-                }
-            } 
-            // Check for iOS WebView
-            else if (/iphone|ipad|ipod/i.test(ua)) {
-                if (!window.safari) {
-                    isWebView = true;
-                    debugLog('Detected iOS WebView', 'INFO');
-                }
-            }
-            
-            if (isWebView) {
-                document.body.classList.add('webview-mode');
-                debugLog('Running in WebView environment', 'INFO');
-            } else {
-                document.body.classList.add('browser-mode');
-                debugLog('Running in browser environment', 'INFO');
-            }
-            
-            return isWebView;
-        }
-        
-        // Check if Supabase table exists
-        async function checkTableExists(name) {
-            debugLog('Checking if table exists: ' + name, 'INFO');
+        // Initialize Supabase client
+        function initSupabase() {
+            debugLog('Initializing Supabase client...', 'INFO');
             
             try {
-                var response = await fetch(supabaseUrl + '/rest/v1/' + name + '?limit=1', {
-                    method: 'GET',
-                    headers: {
-                        'apikey': supabaseKey,
-                        'Authorization': 'Bearer ' + supabaseKey
-                    }
-                });
-                
-                if (response.ok) {
-                    debugLog('Table exists: ' + name, 'SUCCESS');
-                    return true;
-                } else {
-                    debugLog('Table does not exist: ' + name, 'WARNING');
-                    return false;
-                }
-            } catch (error) {
-                debugLog('Error checking table: ' + error.message, 'ERROR');
-                return false;
-            }
-        }
-        
-        // Create Supabase table
-        async function createTable(name) {
-            debugLog('Creating table: ' + name, 'INFO');
-            
-            try {
-                // First check if rpc/execute_sql is available
-                var sqlCheck = await fetch(supabaseUrl + '/rest/v1/rpc/execute_sql', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'apikey': supabaseKey,
-                        'Authorization': 'Bearer ' + supabaseKey
-                    },
-                    body: JSON.stringify({ query: 'SELECT 1' })
-                });
-                
-                // If SQL RPC is not available, we can't create a table this way
-                if (!sqlCheck.ok) {
-                    debugLog('SQL RPC not available, cannot create table', 'ERROR');
-                    return false;
+                // Check if Supabase library is available
+                if (typeof supabase === 'undefined') {
+                    throw new Error('Supabase library not found');
                 }
                 
-                // Create the table using SQL
-                var createSql = `
-                CREATE TABLE IF NOT EXISTS ${name} (
-                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                    name TEXT NOT NULL,
-                    favorite_number INTEGER,
-                    has_image BOOLEAN DEFAULT false,
-                    image_url TEXT,
-                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-                );
+                // Create client
+                supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+                debugLog('Supabase client created', 'SUCCESS');
                 
-                -- Enable row level security
-                ALTER TABLE ${name} ENABLE ROW LEVEL SECURITY;
+                // Test connection
+                testSupabaseConnection();
                 
-                -- Create policy for anonymous inserts
-                DO $$
-                BEGIN
-                    IF NOT EXISTS (
-                        SELECT 1 FROM pg_policies WHERE tablename = '${name}' AND policyname = 'Allow anonymous inserts'
-                    ) THEN
-                        CREATE POLICY "Allow anonymous inserts" ON ${name} FOR INSERT TO anon WITH CHECK (true);
-                    END IF;
-                END
-                $$;
-                
-                -- Create policy for authenticated selects
-                DO $$
-                BEGIN
-                    IF NOT EXISTS (
-                        SELECT 1 FROM pg_policies WHERE tablename = '${name}' AND policyname = 'Allow authenticated selects'
-                    ) THEN
-                        CREATE POLICY "Allow authenticated selects" ON ${name} FOR SELECT TO authenticated USING (true);
-                    END IF;
-                END
-                $$;
-                
-                -- Create policy for authenticated updates
-                DO $$
-                BEGIN
-                    IF NOT EXISTS (
-                        SELECT 1 FROM pg_policies WHERE tablename = '${name}' AND policyname = 'Allow authenticated updates'
-                    ) THEN
-                        CREATE POLICY "Allow authenticated updates" ON ${name} FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
-                    END IF;
-                END
-                $$;
-                
-                -- Create policy for anonymous updates (needed for image URL updates)
-                DO $$
-                BEGIN
-                    IF NOT EXISTS (
-                        SELECT 1 FROM pg_policies WHERE tablename = '${name}' AND policyname = 'Allow anonymous updates'
-                    ) THEN
-                        CREATE POLICY "Allow anonymous updates" ON ${name} FOR UPDATE TO anon USING (true) WITH CHECK (true);
-                    END IF;
-                END
-                $$;
-                `;
-                
-                var createResponse = await fetch(supabaseUrl + '/rest/v1/rpc/execute_sql', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'apikey': supabaseKey,
-                        'Authorization': 'Bearer ' + supabaseKey
-                    },
-                    body: JSON.stringify({ query: createSql })
-                });
-                
-                if (createResponse.ok) {
-                    debugLog('Table created successfully: ' + name, 'SUCCESS');
-                    return true;
-                } else {
-                    var errorText = await createResponse.text();
-                    debugLog('Failed to create table: ' + errorText, 'ERROR');
-                    return false;
-                }
-            } catch (error) {
-                debugLog('Error creating table: ' + error.message, 'ERROR');
-                return false;
-            }
-        }
-        
-        // Initialize the table
-        async function initializeTable() {
-            // Try these table names in order
-            var tableNames = ['new_form', 'simple_form', 'form_responses'];
-            
-            for (let i = 0; i < tableNames.length; i++) {
-                let name = tableNames[i];
-                if (await checkTableExists(name)) {
-                    tableName = name;
-                    debugLog('Using existing table: ' + name, 'SUCCESS');
-                    return true;
-                }
-            }
-            
-            // If no table exists, try to create one
-            debugLog('No existing table found, trying to create one', 'WARNING');
-            if (await createTable('new_form')) {
-                tableName = 'new_form';
                 return true;
+            } catch (error) {
+                debugLog('Failed to initialize Supabase: ' + error.message, 'ERROR');
+                return false;
             }
-            
-            debugLog('Failed to create or find a valid table', 'ERROR');
-            return false;
         }
         
-        // Check storage bucket 
-        async function checkStorageBucket() {
-            debugLog('Checking storage bucket...', 'INFO');
-            
+        // Test Supabase connection
+        async function testSupabaseConnection() {
             try {
-                var response = await fetch(supabaseUrl + '/storage/v1/bucket/form-images', {
-                    method: 'GET',
-                    headers: {
-                        'apikey': supabaseKey,
-                        'Authorization': 'Bearer ' + supabaseKey
+                const { data, error } = await supabaseClient
+                    .from(tableName)
+                    .select('count')
+                    .limit(1);
+                
+                if (error) {
+                    if (error.code === 'PGRST116') {
+                        // Table doesn't exist - normal for first run
+                        debugLog(`Table '${tableName}' doesn't exist yet. Will be created on first submission.`, 'INFO');
+                    } else {
+                        debugLog('Supabase connection test failed: ' + error.message, 'ERROR');
                     }
-                });
-                
-                if (response.ok) {
-                    debugLog('Storage bucket exists', 'SUCCESS');
-                    
-                    // Make sure bucket is public
-                    await setStorageBucketPublic();
-                    return true;
-                } else if (response.status === 404) {
-                    // Bucket doesn't exist, try to create it
-                    return await createStorageBucket();
                 } else {
-                    debugLog('Error checking bucket: ' + response.status, 'ERROR');
-                    return false;
+                    debugLog('Supabase connection successful', 'SUCCESS');
                 }
             } catch (error) {
-                debugLog('Error checking storage bucket: ' + error.message, 'ERROR');
-                return false;
+                debugLog('Supabase test failed: ' + error.message, 'ERROR');
             }
         }
         
-        // Create storage bucket
-        async function createStorageBucket() {
-            debugLog('Creating storage bucket...', 'INFO');
-            
-            try {
-                var response = await fetch(supabaseUrl + '/storage/v1/bucket', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'apikey': supabaseKey,
-                        'Authorization': 'Bearer ' + supabaseKey
-                    },
-                    body: JSON.stringify({
-                        name: 'form-images',
-                        public: true
-                    })
-                });
-                
-                if (response.ok) {
-                    debugLog('Storage bucket created successfully', 'SUCCESS');
-                    return true;
-                } else {
-                    var errorText = await response.text();
-                    debugLog('Failed to create bucket: ' + errorText, 'ERROR');
-                    return false;
-                }
-            } catch (error) {
-                debugLog('Error creating storage bucket: ' + error.message, 'ERROR');
-                return false;
-            }
-        }
-        
-        // Ensure storage bucket is public
-        async function setStorageBucketPublic() {
-            debugLog('Setting storage bucket to public...', 'INFO');
-            
-            try {
-                var response = await fetch(supabaseUrl + '/storage/v1/bucket/form-images', {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'apikey': supabaseKey,
-                        'Authorization': 'Bearer ' + supabaseKey
-                    },
-                    body: JSON.stringify({
-                        public: true
-                    })
-                });
-                
-                if (response.ok) {
-                    debugLog('Storage bucket set to public', 'SUCCESS');
-                    return true;
-                } else {
-                    var errorText = await response.text();
-                    debugLog('Failed to set bucket to public: ' + errorText, 'ERROR');
-                    return false;
-                }
-            } catch (error) {
-                debugLog('Error setting bucket to public: ' + error.message, 'ERROR');
-                return false;
-            }
-        }
-        
-        // Form submission
-        dataForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            debugLog('Form submitted', 'INFO');
-            submitForm();
-        });
-        
-        // ----- Helper Functions -----
+        // ----- Form Functions -----
         
         // Show status message
         function showStatus(message, type) {
@@ -578,33 +330,13 @@
                     var spinner = document.createElement('span');
                     spinner.className = 'spinner';
                     submitBtn.prepend(spinner);
-                    submitBtn.textContent = 'Submitting...';
+                    submitBtn.textContent = ' Submitting...';
                 }
             } else {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = 'Submit';
             }
         }
-        
-        // Generate a random ID without using Date
-        function generateId() {
-            return Math.random().toString(36).substring(2, 15) + 
-                   Math.random().toString(36).substring(2, 15);
-        }
-        
-        // Format file size
-        function formatFileSize(bytes) {
-            if (bytes < 1024) return bytes + ' B';
-            else if (bytes < 1048576) return Math.round(bytes / 1024) + ' KB';
-            else return Math.round(bytes / 1048576 * 10) / 10 + ' MB';
-        }
-        
-        // Get file extension safely
-        function getFileExtension(filename) {
-            return filename.split('.').pop().toLowerCase();
-        }
-        
-        // ----- Form Submission -----
         
         // Submit form
         async function submitForm() {
@@ -620,156 +352,85 @@
             setLoading(true);
             
             try {
-                // Make sure table is initialized
-                if (!tableName) {
-                    debugLog('Initializing table...', 'INFO');
-                    await initializeTable();
+                // Check if Supabase is initialized
+                if (!supabaseClient) {
+                    debugLog('Supabase client not initialized, trying again...', 'WARNING');
+                    initSupabase();
+                    
+                    if (!supabaseClient) {
+                        throw new Error('Unable to connect to database');
+                    }
                 }
                 
-                if (!tableName) {
-                    throw new Error('No valid database table available');
-                }
-                
-                // Create unique ID for this submission
-                submissionId = generateId();
-                debugLog('Generated submission ID: ' + submissionId, 'INFO');
-                
-                // Create data object
-                var formData = {
+                // Format data
+                const formData = {
                     name: name,
-                    favorite_number: parseInt(favoriteNumber) || 0,
-                    };
+                    favorite_number: parseInt(favoriteNumber) || 0
+                };
                 
-                debugLog('Submitting form data: ' + JSON.stringify(formData), 'INFO');
+                debugLog('Submitting data: ' + JSON.stringify(formData), 'INFO');
                 
-                // Submit form data
-                var submitResult = await submitDataToSupabase(formData);
+                // Insert into Supabase
+                const { data, error } = await supabaseClient
+                    .from(tableName)
+                    .insert([formData]);
                 
-                if (!submitResult.success) {
-                    throw new Error('Failed to submit form data: ' + submitResult.error);
+                if (error) {
+                    throw new Error('Database error: ' + error.message);
                 }
                 
-                debugLog('Form data submitted successfully with ID: ' + submitResult.id, 'SUCCESS');
-                
-                // Store the record ID for later use
-                submissionId = submitResult.id;
+                debugLog('Data submitted successfully', 'SUCCESS');
                 
                 // Show thank you page
-                showThankYouPage();
+                formContainer.style.display = 'none';
+                thankYouEl.style.display = 'block';
                 
             } catch (error) {
-                debugLog('Error during form submission: ' + error.message, 'ERROR');
+                debugLog('Error: ' + error.message, 'ERROR');
                 showStatus('Error: ' + error.message, 'error');
+            } finally {
                 setLoading(false);
             }
         }
         
-        // Submit data to Supabase
-        async function submitDataToSupabase(data) {
-            return new Promise(function(resolve) {
-                debugLog('Sending data to Supabase table: ' + tableName, 'INFO');
-                
-                var xhr = new XMLHttpRequest();
-                xhr.open('POST', supabaseUrl + '/rest/v1/' + tableName, true);
-                xhr.setRequestHeader('Content-Type', 'application/json');
-                xhr.setRequestHeader('apikey', supabaseKey);
-                xhr.setRequestHeader('Authorization', 'Bearer ' + supabaseKey);
-                xhr.setRequestHeader('Prefer', 'return=representation');
-                
-                xhr.onreadystatechange = function() {
-                    if (xhr.readyState === 4) {
-                        debugLog('Response status: ' + xhr.status, 'INFO');
-                        
-                        if (xhr.status === 201 || xhr.status === 200) {
-                            try {
-                                var responseData = JSON.parse(xhr.responseText);
-                                var recordId = responseData && responseData.length > 0 ? responseData[0].id : null;
-                                
-                                if (recordId) {
-                                    debugLog('Data submitted successfully with ID: ' + recordId, 'SUCCESS');
-                                    resolve({
-                                        success: true,
-                                        id: recordId
-                                    });
-                                } else {
-                                    debugLog('Data submitted but could not get record ID', 'WARNING');
-                                    resolve({ 
-                                        success: true,
-                                        id: null
-                                    });
-                                }
-                            } catch (error) {
-                                debugLog('Error parsing response: ' + error.message, 'ERROR');
-                                resolve({ 
-                                    success: true,
-                                    id: null
-                                });
-                            }
-                        } else {
-                            debugLog('Data submission failed: ' + xhr.responseText, 'ERROR');
-                            resolve({
-                                success: false,
-                                error: xhr.responseText || 'Unknown error'
-                            });
-                        }
-                    }
-                };
-                
-                xhr.onerror = function() {
-                    debugLog('Network error during data submission', 'ERROR');
-                    resolve({
-                        success: false,
-                        error: 'Network error'
-                    });
-                };
-                
-                xhr.send(JSON.stringify(data));
-            });
-        }
-        
-        // Show thank you page
-        function showThankYouPage() {
-            debugLog('Showing thank you page', 'INFO');
-            formContainer.style.display = 'none';
-            thankYouEl.style.display = 'block';
-            setLoading(false);
-        }
-        
         // Reset form
         function resetForm() {
-            debugLog('Resetting form', 'INFO');
             dataForm.reset();
             formContainer.style.display = 'block';
             thankYouEl.style.display = 'none';
             statusEl.style.display = 'none';
-            submissionId = null;
         }
         
-        // ----- Form Initialization -----
+        // ----- Event Listeners -----
         
-        // Initialize the form
-        async function initializeForm() {
-            debugLog('Initializing form...', 'INFO');
+        // Form submission
+        dataForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            submitForm();
+        });
+        
+        // Submit another response button
+        newResponseBtn.addEventListener('click', function() {
+            resetForm();
+        });
+        
+        // ----- Initialization -----
+        
+        // Initialize the app
+        function init() {
+            debugLog('Initializing application...', 'INFO');
             
             // Initialize debug panel
             initDebug();
             
-            // Detect environment
-            detectEnvironment();
+            // Initialize Supabase
+            initSupabase();
             
-            // Initialize database table
-            try {
-                await initializeTable();
-            } catch (error) {
-                debugLog('Error initializing table: ' + error.message, 'ERROR');
-                // Continue anyway, we'll try again when submitting
-            }
-            
-            debugLog('Form initialized successfully', 'SUCCESS');
+            debugLog('Application initialized', 'SUCCESS');
         }
         
-        // Start initialization
-        initializeForm();
+        // Run initialization
+        document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>
